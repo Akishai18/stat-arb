@@ -1,7 +1,13 @@
 """Backtesting engine.
 
-Convention enforced everywhere: a signal computed using data up to the close
-of day t is tradable starting at day t+1. The engine is vectorized but
-auditable - any backtest must pass the no-lookahead synthetic test in
-tests/test_backtest_no_lookahead.py (added in Phase 2).
+THE SINGLE LAG RULE this engine enforces:
+    A weight panel dated by the day its signal was computed is shifted by
+    one day before being applied. The lag is centralized here so signal
+    and portfolio-construction code stays lag-free and impossible to
+    double-lag or zero-lag.
 """
+
+from statarb.backtest.engine import Backtester
+from statarb.backtest.result import BacktestResult
+
+__all__ = ["BacktestResult", "Backtester"]
