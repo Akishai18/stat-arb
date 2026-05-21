@@ -7,19 +7,23 @@ or earlier; the backtest engine applies an additional one-day lag, so
 authors do not pre-lag.
 
 Phase 3: momentum. Phase 4: reversal + combination. Phase 5: carry
-(ETF-vs-futures proxy). Phase 6: inventory + COT positioning.
+(ETF-vs-futures proxy). Phase 6: COT positioning + EIA inventory surprise.
 """
 
 from statarb.signals._normalize import cross_sectional_rank, cross_sectional_zscore
 from statarb.signals.carry import realized_carry
 from statarb.signals.combine import combine
+from statarb.signals.cot import cot_positioning
+from statarb.signals.inventory import inventory_surprise
 from statarb.signals.momentum import momentum
 from statarb.signals.reversal import reversal
 
 __all__ = [
     "combine",
+    "cot_positioning",
     "cross_sectional_rank",
     "cross_sectional_zscore",
+    "inventory_surprise",
     "momentum",
     "realized_carry",
     "reversal",
