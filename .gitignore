@@ -22,6 +22,11 @@ venv/
 # Notebooks
 .ipynb_checkpoints/
 
+# Secrets — API keys must never be committed
+.env
+.env.*
+!.env.example
+
 # OS / editor
 .DS_Store
 .idea/

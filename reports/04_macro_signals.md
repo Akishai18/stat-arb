@@ -1,6 +1,6 @@
-# Phase 6: Macro Signals — COT Positioning (+ EIA Inventory, gated)
+# Phase 6: Macro Signals — COT Positioning + EIA Inventory Surprise
 
-**TL;DR.** The CFTC Commitments of Traders signal (managed-money positioning, negated 3-year z-score) is the second signal in this project with positive standalone alpha (Sharpe **+0.19**, alpha vs SPY **+3.52% annualized**, max DD only **-39%**, turnover only **13×/yr**). It has near-zero correlation with carry (ρ = 0.003), so the two are genuinely independent. **But equal-weight aggregation of all four signals (mom + rev + carry + cot) reduces Sharpe below carry-alone** because the negative-Sharpe price signals drag the combination down. This is the strongest single motivation for Phase 7's formal optimization. The EIA inventory-surprise signal is fully implemented but requires a free EIA API key to run; the runner skips it gracefully when the key is absent.
+**TL;DR.** The CFTC COT positioning signal (negated 3-year z-score of managed money's net positioning) is the second signal in this project with positive standalone alpha — Sharpe **+0.19**, alpha vs SPY **+3.52% annualized**, max DD only **-39%**, turnover only **13×/yr**. Correlation with carry is **0.003** — genuinely independent. The EIA inventory-surprise signal, freshly enabled with an API key, has **negative** standalone Sharpe (-0.64) — opposite to the project's stated hypothesis. But the all-five-signal combo at 0 bps jumps to Sharpe **+0.56** (vs +0.33 without inventory), confirming inventory carries real information; the negative direction suggests either a wrong-sign hypothesis, an overly-crude seasonal baseline, or post-release reversal dominating. The cleanest Phase 6 result is therefore **carry + cot only**, with full Sharpe **+0.17** and **OOS Sharpe +0.28** at 10 bps — and the strongest case yet for Phase 7's formal optimization to weight signals by quality rather than equal.
 
 ## Hypotheses
 
@@ -41,12 +41,25 @@ Using the as-of date instead of the release date would create a 3-business-day (
 | futures_reversal_5d | -0.33 | -7.91% | 19.40% | -73.57% | 140.4x | -7.39% |
 | futures_carry_21d | +0.37 | +5.40% | 19.67% | -27.95% | 80.5x | +6.07% |
 | **futures_cot_3y** | **+0.19** | **+1.72%** | 17.49% | **-39.08%** | **13.0x** | **+3.52%** |
+| futures_inventory_5yr_seas | **-0.64** | -7.17% | **10.78%** | -72.00% | 48.9x | -7.20% |
 
-Two interesting features of the COT signal:
+### COT
 - **Low turnover (13×/yr).** Weekly signal with a 3-year z-score window is naturally slow-moving. Costs barely bite.
-- **Modest but real alpha.** Positive standalone alpha of +3.52%/yr vs SPY with beta near zero. Not a dominant signal but a genuine additive one — which is exactly what good combinations are built from.
+- **Modest but real alpha.** Positive standalone alpha of +3.52%/yr vs SPY with beta near zero. A genuine additive signal.
 
 ![COT standalone equity curve](charts/04_cot_standalone_equity.png)
+
+### Inventory surprise — the unexpected result
+- **Sharpe -0.64 standalone.** The opposite of the project's stated hypothesis.
+- Low realized vol (10.78%) but a consistent **negative** alpha (-7.20%/yr): not noise, a real persistent edge in the **wrong direction**.
+- Three candidate explanations, in declining order of confidence:
+  1. **Post-release reversal dominates.** EIA WPSR releases Wednesday 10:30 ET; by Thursday open (when we trade after the engine's 1-day lag) the news is fully priced. If the release tends to *overreact*, then "trade on the surprise" systematically catches the overreaction in the wrong direction. Flipping the sign would mechanically convert this into a +0.64 Sharpe — but doing so post-hoc without a formal pre-registered hypothesis is exactly the overfitting trap we've been avoiding.
+  2. **The 5-year same-week seasonal baseline is a crude proxy for consensus expectations.** Without paid Bloomberg consensus data, our "surprise" is "(actual − seasonal_mean)", which is what *should* have been expected on average — not what the market expected this week given current oil prices, OPEC announcements, etc. The market knows more than our naive baseline.
+  3. **The 4-of-5 ticker mapping is forced.** Both CL=F and BZ=F are mapped to US crude inventories (`WCESTUS1`). Brent is a global benchmark not driven by US stocks; this likely contaminates the BZ=F leg.
+
+The honest read: we hypothesized "build = bearish, draw = bullish, trade after the EIA Wednesday release" and the strategy lost money consistently. That is itself an informative result — it suggests the simple "trade on inventory surprise news" strategy doesn't work for next-day execution, regardless of whether the signal carries information (it clearly does; see the combination analysis below).
+
+![Inventory standalone equity curve](charts/04_inventory_standalone_equity.png)
 
 ## Combined results @ 10 bps
 
@@ -62,98 +75,100 @@ The OOS Sharpe of +0.28 is the strongest OOS result so far in the project. Beta 
 
 ![Carry + COT equity curve](charts/04_carry_cot_equity.png)
 
-### Combined: all four signals (mom + rev + carry + cot)
+### Combined: all five signals (mom + rev + carry + cot + inventory)
 
 | Window | Sharpe | CAGR | Ann vol | MaxDD | Turnover/yr |
 |---|---:|---:|---:|---:|---:|
-| In-sample | -0.11 | -3.51% | 17.89% | -43.49% | 86.3x |
-| Out-of-sample | -0.04 | -3.69% | 23.65% | -40.13% | 80.8x |
-| Full window | **-0.07** | -3.60% | 20.94% | -57.52% | 83.6x |
+| In-sample | +0.14 | +1.05% | 13.39% | -27.79% | 103.9x |
+| Out-of-sample | -0.30 | -5.78% | 15.93% | -48.61% | 86.9x |
+| Full window | **-0.09** | -2.40% | 14.71% | -48.61% | 95.5x |
 
-**This is worse than carry alone, and worse than carry + cot.** Adding the negative-Sharpe price signals at equal weight DRAGS the combination down by ~0.24 Sharpe vs. carry-and-cot only. Equal-weight aggregation is the wrong portfolio when signal qualities are heterogeneous.
+**Worse than carry alone, worse than carry + cot, and worse out-of-sample than in-sample.** Equal-weighting all five hurts: the two negative-Sharpe price signals (mom, rev) and the wrong-sign inventory signal drag the combination below the positive contributions of carry and cot. **The 0-bps diagnostic is the most informative:**
 
-![All-four combined cost sensitivity](charts/04_all_combined_cost_sensitivity.png)
-
-### Cost sensitivity (all-four combo)
+### Cost sensitivity (all-five combo)
 
 | Cost (bps/side) | Sharpe | CAGR | MaxDD |
 |---:|---:|---:|---:|
-| 0 | +0.33 | +4.81% | -31.81% |
-| 5 | +0.13 | +0.52% | -34.66% |
-| 10 | -0.07 | -3.60% | -57.52% |
-| 25 | -0.67 | -14.97% | -92.43% |
+| **0** | **+0.56** | +7.39% | -36.58% |
+| 5 | +0.23 | +2.38% | -41.61% |
+| 10 | -0.09 | -2.40% | -48.61% |
+| 25 | -1.05 | -15.45% | -92.29% |
 
-At 0 bps the all-four combo has Sharpe +0.33 — there's real signal in the combination. But it's *less* than the standalone carry's signal-only equivalent, because the bad signals net out to a small negative drag rather than positive contribution.
+At 0 bps the all-five combo has Sharpe **+0.56** — meaningfully higher than the all-four version's +0.33. **The information in the inventory signal IS being captured by the combination**; it's just that combined with the wrong-direction standalone, the realized portfolio loses money once costs are applied. This confirms the inventory signal is informative even when it isn't directly profitable: it's adding orthogonal variance the combination can exploit if weighting is right.
+
+![All-five combined cost sensitivity](charts/04_all_combined_cost_sensitivity.png)
 
 ## Correlation structure (full window, 10 bps)
 
-|  | mom | rev | carry | cot | combo(c+c) | combo(all4) |
-|---|---:|---:|---:|---:|---:|---:|
-| momentum | 1.000 | -0.040 | 0.072 | 0.004 | 0.041 | 0.341 |
-| reversal | -0.040 | 1.000 | 0.219 | -0.107 | 0.144 | 0.474 |
-| carry | 0.072 | 0.219 | 1.000 | 0.003 | 0.690 | 0.557 |
-| **cot** | 0.004 | -0.107 | **0.003** | 1.000 | 0.304 | 0.098 |
+|  | mom | rev | carry | cot | **inventory** | combo(c+c) | combo(all5) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| momentum | 1.000 | -0.040 | 0.072 | 0.004 | -0.008 | 0.041 | 0.047 |
+| reversal | -0.040 | 1.000 | 0.219 | -0.107 | 0.050 | 0.144 | 0.162 |
+| carry | 0.072 | 0.219 | 1.000 | 0.003 | 0.073 | 0.690 | 0.309 |
+| **cot** | 0.004 | -0.107 | **0.003** | 1.000 | 0.042 | 0.304 | 0.095 |
+| **inventory** | -0.008 | 0.050 | **0.073** | **0.042** | 1.000 | 0.045 | 0.365 |
 
-Two findings of substance:
-1. **COT ↔ carry correlation = 0.003.** These signals are pulling on completely different economic levers (speculative positioning vs. realized curve carry). Independence this clean is rare and exactly what good combinations need.
-2. **COT ↔ everything-else: |ρ| < 0.11.** The COT signal is the most-independent signal in our toolkit. From a diversification standpoint it's worth keeping under almost any combination scheme.
+Three findings of substance:
+1. **COT ↔ carry correlation = 0.003.** Completely different economic levers (speculative positioning vs. realized curve carry).
+2. **Inventory ↔ carry = 0.073, inventory ↔ cot = 0.042.** Inventory is also genuinely orthogonal to both productive signals.
+3. **Every pair of macro signals is near-uncorrelated.** From a diversification standpoint, both COT and inventory are worth keeping under any combination scheme that weights them appropriately.
 
 ![Correlation heatmap](charts/04_signal_correlation.png)
 
-## The Phase 7 case has arrived
+## The Phase 7 case is now overwhelming
 
-Three of our four signals have negative Sharpe; one (carry) is +0.37; another (cot) is +0.19. Equal-weight combination assigns 25% weight to each. The right weighting given these IS Sharpe estimates (and being conservative for overfitting) is roughly:
+After Phase 6 we have five signals with sharply heterogeneous quality and pairwise near-zero correlation:
 
-- Drop momentum and reversal entirely (negative-Sharpe; we have no economic reason to expect them to recover).
-- Allocate to carry and COT in some Sharpe-aware fashion.
+| Signal | Standalone Sharpe | Independent from carry? | Independent from COT? |
+|---|---:|:---:|:---:|
+| momentum | -0.92 | ✓ (0.07) | ✓ (0.00) |
+| reversal | -0.33 | partial (0.22) | ✓ (-0.11) |
+| **carry** | **+0.37** | (self) | ✓ (0.00) |
+| **cot** | **+0.19** | ✓ (0.00) | (self) |
+| inventory | -0.64 (wrong sign?) | ✓ (0.07) | ✓ (0.04) |
 
-That's exactly what Phase 7 will do, formally, with cvxpy constraints (gross/net exposure, turnover cap, per-asset position cap).
+Equal-weight combination assigns 20% to each — this is provably suboptimal here. The right portfolio given these IS Sharpes is roughly:
+- Carry: positive weight, the dominant contributor.
+- COT: positive weight, the cleanest diversifier.
+- Momentum, reversal: zero weight (negative Sharpe, no economic prior expecting recovery).
+- Inventory: zero weight OR sign-flipped (treated as a hypothesis to investigate, not a free Sharpe).
+
+Phase 7 will formalize this with `cvxpy`: maximize information-ratio-weighted alpha subject to gross/net exposure, turnover, and per-asset caps. The constraint set is what prevents the optimizer from over-fitting to the IS Sharpe rankings.
 
 ## What I'm taking forward
 
-1. **COT is locked in.** Independent of carry, modest standalone alpha, low turnover, OOS-friendly. Will be a permanent component.
-2. **Carry remains the dominant signal.** Sharpe +0.37 standalone over a 15-year window with positive OOS performance is the project's strongest individual edge.
-3. **Equal weighting fails when signal qualities are heterogeneous.** Phase 7 must produce a meaningful Sharpe improvement over the carry+cot baseline of +0.17 to justify the optimization complexity.
-4. **Inventory signal is built and ready** but blocked on the user obtaining a free EIA API key. The runner detects and skips cleanly. Expected behavior when the key is added: another modestly-positive standalone Sharpe, low correlation with both carry and COT, additional Phase 7 component.
-
-## EIA inventory: status and how to enable
-
-The full inventory-signal pipeline is implemented:
-- `statarb.data.eia.build_eia_panel` fetches crude/gasoline/distillate weekly stocks via the EIA v2 API
-- `statarb.signals.inventory_surprise` computes the 5-year same-ISO-week seasonal baseline and the negated surprise
-- The runner detects `EIA_API_KEY` and includes the inventory signal automatically if present
-
-To enable:
-```bash
-# 1. Register a free key (instant): https://www.eia.gov/opendata/register.php
-export EIA_API_KEY=<your_key>
-
-# 2. Ingest
-uv run python -m statarb.cli.ingest_macro
-
-# 3. Re-run Phase 6
-uv run python scripts/run_macro_signals.py
-```
-
-The runner will then produce a 5-signal correlation matrix, a 5-signal combined backtest, and an additional `04_inventory_standalone_equity.png` chart.
+1. **Carry remains the dominant signal.** Sharpe +0.37 standalone over the full window with positive OOS performance.
+2. **COT is locked in.** Independent of everything else, modest standalone alpha, very low turnover, OOS-friendly.
+3. **Inventory is informative but not directly profitable as-implemented.** The all-5 0-bps Sharpe of +0.56 (vs all-4 +0.33) is evidence the signal carries information; the standalone -0.64 says we have the sign or timing wrong. **Don't sign-flip post-hoc**; instead, treat as a hypothesis for a paid-data Phase 6b follow-up with proper consensus expectations and intra-day execution (trade *into* the WPSR release rather than after).
+4. **Equal weighting fails when signal qualities are heterogeneous.** Phase 7 must produce a meaningful Sharpe improvement over the carry+cot baseline of +0.17 to justify the optimization complexity.
 
 ## Caveats — what I am NOT claiming
 
 - **OOS Sharpe of +0.28 (carry+cot) is not deployable.** It's the project's best result so far; it remains modest in absolute terms.
 - **COT signal has only ~8 years of usable post-z-score history** (signal becomes valid mid-2011, OOS starts 2019). The walk-forward windows are small.
-- **The combination math is doing the heavy lifting through carry; COT contributes diversification, not absolute return.** A pure carry portfolio is still the simplest single-signal strategy with positive alpha.
+- **Inventory's negative Sharpe is not evidence the signal is useless.** The 0-bps combined evidence shows it adds information; we just have the sign or timing wrong. A defensible Phase 6b would (a) get paid consensus expectations to replace the seasonal baseline, (b) execute *into* the EIA release rather than the next day, and (c) test both signs as pre-registered hypotheses.
 - **Phase 7 optimization should be evaluated honestly.** It's tempting to tune `λ` and weights until in-sample Sharpe pops; we'll constrain ourselves to choosing parameters on IS and reporting OOS only.
 - **CFTC contract codes can shift over time.** The 5 codes we use have been stable in this window; if WTI (`067651`) ever gets renamed, our 2010-2026 backtest's older slice would silently drop. A future check at ingest time (verify open-interest > X for every year × ticker) would catch this.
+- **The EIA inventory mapping is forced (4-of-5 tickers).** Both CL=F and BZ=F share the US-crude series; NG=F has no WPSR mapping (it uses a separate Thursday bulletin). The Brent mapping is the weakest — Brent is a global benchmark.
 
 ## Reproducibility
 
 ```bash
+# 1. (Optional but recommended) Register a free EIA key at:
+#    https://www.eia.gov/opendata/register.php
+#    Then put it in a .env file at the repo root:
+#       EIA_API_KEY=your_actual_key_here
+#    The project loads .env automatically via python-dotenv.
+
+# 2. Ingest macro data
 uv run python -m statarb.cli.ingest_macro            # CFTC always; EIA if key set
-uv run python scripts/run_macro_signals.py            # produces charts + metrics csv
+
+# 3. Run Phase 6
+uv run python scripts/run_macro_signals.py           # produces charts + metrics csv
 ```
 
 Outputs:
-- `reports/charts/04_*.png` (this report's figures)
+- `reports/charts/04_*.png` (this report's figures, including `04_inventory_standalone_equity.png` if EIA was loaded)
 - `reports/04_macro_signals_metrics.csv`
 
 All numbers come from these scripts.

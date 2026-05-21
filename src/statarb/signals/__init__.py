@@ -12,7 +12,7 @@ Phase 3: momentum. Phase 4: reversal + combination. Phase 5: carry
 
 from statarb.signals._normalize import cross_sectional_rank, cross_sectional_zscore
 from statarb.signals.carry import realized_carry
-from statarb.signals.combine import combine
+from statarb.signals.combine import combine, sharpe_weighted_combine
 from statarb.signals.cot import cot_positioning
 from statarb.signals.inventory import inventory_surprise
 from statarb.signals.momentum import momentum
@@ -27,4 +27,5 @@ __all__ = [
     "momentum",
     "realized_carry",
     "reversal",
+    "sharpe_weighted_combine",
 ]

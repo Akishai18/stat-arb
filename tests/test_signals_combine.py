@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from statarb.signals import combine, cross_sectional_zscore
+from statarb.signals import combine, cross_sectional_zscore, sharpe_weighted_combine
 
 
 def _panel(values: list[list[float]]) -> pd.DataFrame:
@@ -86,3 +86,63 @@ def test_combine_rejects_all_zero_weights():
 def test_combine_rejects_empty_input():
     with pytest.raises(ValueError):
         combine({})
+
+
+# ---------------------------------------------------------------------------
+# Sharpe-weighted combine
+# ---------------------------------------------------------------------------
+
+
+def test_sharpe_weighted_drops_negative_sharpe_signals():
+    """A signal with negative IS Sharpe should get weight 0; output should
+    equal a single-signal combine over the survivors."""
+    a = _panel([[1.0, 2.0, 3.0, 4.0]])
+    b = _panel([[4.0, 3.0, 2.0, 1.0]])
+    c = _panel([[1.0, 1.0, 1.0, 1.0]])  # zero variance
+    out = sharpe_weighted_combine(
+        {"a": a, "b": b, "c": c},
+        is_sharpes={"a": 0.5, "b": -0.2, "c": 0.1},
+    )
+    # Expected: 'a' and 'c' contribute (positive Sharpes), 'b' is dropped.
+    # 'c' has zero variance so cross_sectional_zscore -> all NaN.
+    expected = combine({"a": a, "c": c}, weights={"a": 0.5, "c": 0.1})
+    pd.testing.assert_frame_equal(out, expected)
+
+
+def test_sharpe_weighted_proportional_to_positive_sharpes():
+    """Sharpe weights are proportional, so weights of (0.5, 0.5) == (2.0, 2.0)."""
+    a = _panel([[1.0, 2.0, 3.0, 4.0]])
+    b = _panel([[4.0, 3.0, 2.0, 1.0]])
+    out_low = sharpe_weighted_combine({"a": a, "b": b}, is_sharpes={"a": 0.5, "b": 0.5})
+    out_high = sharpe_weighted_combine({"a": a, "b": b}, is_sharpes={"a": 2.0, "b": 2.0})
+    pd.testing.assert_frame_equal(out_low, out_high)
+
+
+def test_sharpe_weighted_falls_back_to_equal_weight_if_all_negative():
+    """If every signal has Sharpe <= 0, fall back to equal weight rather than
+    return all zeros."""
+    a = _panel([[1.0, 2.0, 3.0, 4.0]])
+    b = _panel([[4.0, 3.0, 2.0, 1.0]])
+    out = sharpe_weighted_combine({"a": a, "b": b}, is_sharpes={"a": -0.1, "b": -0.5})
+    expected = combine({"a": a, "b": b})  # equal-weight default
+    pd.testing.assert_frame_equal(out, expected)
+
+
+def test_sharpe_weighted_floor_at_zero_false_allows_sign_flip():
+    """With floor_at_zero=False, negative Sharpe inverts the signal."""
+    a = _panel([[1.0, 2.0, 3.0, 4.0]])
+    out_flipped = sharpe_weighted_combine(
+        {"a": a}, is_sharpes={"a": -1.0}, floor_at_zero=False,
+    )
+    out_normal = sharpe_weighted_combine(
+        {"a": a}, is_sharpes={"a": 1.0}, floor_at_zero=False,
+    )
+    # Inverting Sharpe should invert the resulting combined score.
+    np.testing.assert_allclose(out_flipped.to_numpy(), -out_normal.to_numpy(), atol=1e-12)
+
+
+def test_sharpe_weighted_rejects_missing_sharpes():
+    a = _panel([[1.0, 2.0, 3.0, 4.0]])
+    b = _panel([[4.0, 3.0, 2.0, 1.0]])
+    with pytest.raises(ValueError, match="missing"):
+        sharpe_weighted_combine({"a": a, "b": b}, is_sharpes={"a": 0.5})

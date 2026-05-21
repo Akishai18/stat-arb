@@ -28,8 +28,12 @@ from collections.abc import Iterable
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 
 from statarb.data.paths import processed_path
+
+# Load a .env file at the project root (or CWD) automatically. Idempotent.
+load_dotenv()
 
 log = logging.getLogger(__name__)
 
