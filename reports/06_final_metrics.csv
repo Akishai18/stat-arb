@@ -1,0 +1,7 @@
+strategy,window,n_days,CAGR,ann_vol,Sharpe,Sortino,max_dd,monthly_hit,ann_turnover,cost_drag_ann,beta_SPY,alpha_SPY_ann
+optimizer_locked,in_sample,1887,0.0301,0.1068,0.331,0.51,-0.191,0.511,73.37,0.0734,0.023,0.0327
+optimizer_locked,out_of_sample,1858,0.0247,0.1449,0.239,0.404,-0.2613,0.461,58.42,0.0584,-0.027,0.0375
+optimizer_locked,full,3745,0.0274,0.1271,0.275,0.449,-0.2613,0.486,65.95,0.066,-0.009,0.0353
+baseline_eq_carry+cot,in_sample,1887,-0.0086,0.1794,0.042,0.059,-0.4096,0.511,56.89,0.0569,0.171,-0.0125
+baseline_eq_carry+cot,out_of_sample,1858,0.0395,0.2301,0.283,0.432,-0.3813,0.494,50.79,0.0508,-0.025,0.0699
+baseline_eq_carry+cot,full,3745,0.015,0.2061,0.175,0.258,-0.4096,0.503,53.87,0.0539,0.046,0.0291
