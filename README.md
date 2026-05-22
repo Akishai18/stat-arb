@@ -1,36 +1,87 @@
 # stat-arb
 
-Systematic energy-commodities research platform.
+Systematic energy-commodities research platform — a long/short futures portfolio combining curve carry, CFTC managed-money positioning, and EIA inventory surprises via a constrained `cvxpy` mean-variance optimizer.
 
 > Analyze commodity market data to identify statistical mispricings and exploit them through a systematic long/short portfolio.
 
-See [`PLAN.md`](./PLAN.md) for the full phased implementation roadmap.
+**Headline result:** Full-window Sharpe **+0.28** at 10 bps/side, vol **12.7%**, max DD **-26%**, alpha vs SPY **+3.5%/yr**, walk-forward-validated 2011–2026 across VIX, energy bull/bear, and pre/post-2022 regimes.
+
+The complete project narrative is in [`reports/FINAL.md`](./reports/FINAL.md). The phased plan is in [`PLAN.md`](./PLAN.md). Per-phase reports are in `reports/01_*` through `reports/05_*`.
 
 ## Quickstart
 
 Requires Python 3.11+ and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync --extra dev
-uv run pytest
-uv run python -c "import statarb; print(statarb.__version__)"
+# Install with all extras (dev tools + cvxpy + streamlit dashboard)
+uv sync --extra dev --extra opt --extra dashboard
+
+# (Optional) Free EIA API key for the inventory signal
+# Register: https://www.eia.gov/opendata/register.php
+# Add to .env at the repo root:
+#   EIA_API_KEY=your_key_here
+# (the project loads .env automatically via python-dotenv)
+
+# Ingest data (one-time, ~1 minute)
+uv run python -m statarb.cli.ingest         # yfinance ETF + futures
+uv run python -m statarb.cli.ingest_macro   # CFTC always; EIA if key set
+
+# Launch the interactive dashboard
+uv run streamlit run scripts/dashboard.py
+
+# Reproduce all phase reports + the final synthesis
+uv run python scripts/run_momentum.py                # Phase 3
+uv run python scripts/run_reversal_and_combo.py      # Phase 4
+uv run python scripts/run_carry_and_futures.py       # Phase 5
+uv run python scripts/run_macro_signals.py           # Phase 6
+uv run python scripts/run_optimization.py            # Phase 7
+uv run python scripts/run_final_evaluation.py        # Phase 8
+
+# Verify the pipeline is intact
+uv run pytest    # 133 tests
 ```
+
+## Interactive dashboard
+
+`scripts/dashboard.py` launches a Streamlit + Plotly app with 7 tabs:
+
+- **Overview** — headline metrics, equity curve vs SPY, drawdown, IS/OOS/Full table
+- **Today** — latest signal scores per asset, current optimizer weights, rebalance diff
+- **Signals** — standalone performance table, correlation matrix, per-regime Sharpe heatmap
+- **Portfolio** — weight time series, gross/net exposure, daily turnover, position-cap utilization
+- **Costs** — master cost-sensitivity table + Sharpe-vs-cost line chart
+- **Regimes** — selector for VIX / energy / period / strategy-vol regimes with equity-split chart
+- **About** — methodology, links to phase reports, reproducibility
+
+Heavy computations (signal panels, optimizer path, regime masks) are cached once per session via `@st.cache_data` so navigation between tabs is instant.
 
 ## Layout
 
 ```
 src/statarb/
-  data/         # loaders, point-in-time price access
-  signals/      # momentum, reversal, carry, inventory, COT
-  backtest/     # vectorized no-lookahead engine
-  portfolio/    # weighting + cvxpy optimization
-  costs/        # transaction-cost models
-  evaluation/   # metrics, walk-forward, regime analysis
-  cli/          # ingestion + run scripts
-reports/        # written research output
-tests/
+  data/         # loaders, point-in-time price access, EIA + CFTC ingestion
+  signals/      # momentum, reversal, carry, COT, inventory, combine, sharpe-weighted blend
+  backtest/     # vectorized no-lookahead engine + result dataclass
+  portfolio/    # eq-weight quantile + cvxpy optimizer + rolling covariance
+  costs/        # linear + zero cost models
+  evaluation/   # metrics, walk-forward, regimes, plots
+  dashboard/    # streamlit app + cached state + 7 view modules
+  cli/          # ingestion entrypoints
+scripts/        # per-phase runners + dashboard launcher
+tests/          # 133 passing tests
+reports/        # phase reports + FINAL.md + charts
 ```
 
 ## Status
 
-Phase 0 (foundation) complete. Phase 1 (data layer) next — see PLAN.md.
+**All 9 phases complete.** See `reports/FINAL.md` for the synthesis writeup.
+
+## Stack
+
+- Python 3.11+, `uv` for package management
+- `pandas`, `numpy`, `scipy`, `statsmodels` for data + metrics
+- `cvxpy` + `OSQP` for the portfolio optimizer
+- `yfinance` + `requests` for data ingestion
+- `streamlit` + `plotly` for the interactive dashboard
+- `pytest` + `ruff` for tests + lint
+- `python-dotenv` for `.env` loading

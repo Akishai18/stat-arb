@@ -24,6 +24,10 @@ dev = [
 opt = [
     "cvxpy>=1.5",
 ]
+dashboard = [
+    "streamlit>=1.30",
+    "plotly>=5.18",
+]
 
 [build-system]
 requires = ["hatchling"]
