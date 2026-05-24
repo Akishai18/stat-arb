@@ -1,10 +1,12 @@
 # stat-arb
 
-Systematic energy-commodities research platform — a long/short futures portfolio combining curve carry, CFTC managed-money positioning, and EIA inventory surprises via a constrained `cvxpy` mean-variance optimizer.
+Systematic commodities research platform — a long/short futures portfolio combining curve carry and CFTC managed-money positioning across 13 commodity futures (energy + metals + grains).
 
 > Analyze commodity market data to identify statistical mispricings and exploit them through a systematic long/short portfolio.
 
-**Headline result:** Full-window Sharpe **+0.28** at 10 bps/side, vol **12.7%**, max DD **-26%**, alpha vs SPY **+3.5%/yr**, walk-forward-validated 2011–2026 across VIX, energy bull/bear, and pre/post-2022 regimes.
+**Headline result:** Full-window Sharpe **+1.00** at 10 bps/side, vol **10.8%**, max DD **-11.8%**, alpha vs SPY **+10.5%/yr**, walk-forward-validated 2011–2026. Bootstrap 95% CI **[+0.54, +1.43]** (p < 0.001) excludes zero. After Deflated-Sharpe-Ratio correction for multiple-testing across 25 candidates (Bailey-LdP 2014), DSR = 0.94 — just below the strict 95% bar. Sharpe range under leave-one-commodity-out and alternate-split sensitivity sweeps: **[+0.65, +1.27]**, comfortably positive in all 27 perturbations.
+
+A 5-commodity (energy-only) earlier version produced Sharpe +0.28 with CI straddling zero. Expanding to 13 commodities (Phase A1) was the breakthrough that made the signal statistically real. Honest details in [`reports/FINAL.md`](./reports/FINAL.md).
 
 The complete project narrative is in [`reports/FINAL.md`](./reports/FINAL.md). The phased plan is in [`PLAN.md`](./PLAN.md). Per-phase reports are in `reports/01_*` through `reports/05_*`.
 

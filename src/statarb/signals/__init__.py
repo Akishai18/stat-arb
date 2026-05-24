@@ -17,6 +17,7 @@ from statarb.signals.cot import cot_positioning
 from statarb.signals.inventory import inventory_surprise
 from statarb.signals.momentum import momentum
 from statarb.signals.reversal import reversal
+from statarb.signals.ts_momentum import ts_momentum
 
 __all__ = [
     "combine",
@@ -28,4 +29,5 @@ __all__ = [
     "realized_carry",
     "reversal",
     "sharpe_weighted_combine",
+    "ts_momentum",
 ]

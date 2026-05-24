@@ -1,7 +1,7 @@
 strategy,window,point_sharpe,bootstrap_mean,ci_low_95,ci_high_95,t_stat,p_value_sharpe_leq_0,significant_at_5pct,n_obs
-optimizer_locked (full window),Full,0.275,0.253,-0.225,0.711,1.153,0.15,False,3745
-optimizer_locked (full window),In-sample,0.331,0.303,-0.3,0.878,1.091,0.1532,False,1887
-optimizer_locked (full window),Out-of-sample,0.239,0.192,-0.54,0.889,0.656,0.2952,False,1858
-baseline_eq_carry+cot (full window),Full,0.175,0.17,-0.301,0.655,0.715,0.2462,False,3745
-baseline_eq_carry+cot (full window),In-sample,0.042,0.037,-0.602,0.667,0.129,0.4534,False,1887
-baseline_eq_carry+cot (full window),Out-of-sample,0.283,0.28,-0.419,0.996,0.778,0.2224,False,1858
+optimizer_locked (full window),Full,0.148,0.139,-0.329,0.613,0.608,0.277,False,3748
+optimizer_locked (full window),In-sample,0.459,0.419,-0.267,1.08,1.334,0.1134,False,1887
+optimizer_locked (full window),Out-of-sample,-0.09,-0.107,-0.788,0.561,-0.256,0.6198,False,1861
+baseline_eq_carry+cot (full window),Full,1.004,0.997,0.538,1.434,4.363,0.0,True,3748
+baseline_eq_carry+cot (full window),In-sample,0.909,0.848,0.166,1.527,2.636,0.007,True,1887
+baseline_eq_carry+cot (full window),Out-of-sample,1.095,1.081,0.449,1.684,3.476,0.0008,True,1861

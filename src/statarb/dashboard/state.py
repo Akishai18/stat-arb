@@ -22,7 +22,7 @@ from statarb.costs import LinearCostModel
 from statarb.data import (
     ETF_FUTURES_PAIRS,
     PriceData,
-    energy_futures,
+    all_tradable_futures,
     mask_known_anomalies,
 )
 from statarb.data.cftc import load_cot_panel
@@ -105,7 +105,7 @@ def _load_prices() -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     raw = PriceData.load()
     adj_clean = mask_known_anomalies(raw.adj_close())
     spy = PriceData(adj_clean).returns()["SPY"]
-    fut_adj = adj_clean[energy_futures()]
+    fut_adj = adj_clean[all_tradable_futures()]
     return adj_clean, spy, fut_adj
 
 
@@ -227,7 +227,7 @@ def _optimizer_backtests(
     aligned = {n: s.loc[first_valid:] for n, s in signals.items()}
     alpha = sharpe_weighted_combine(aligned, is_sharpes=is_sharpes)
 
-    futures = energy_futures()
+    futures = all_tradable_futures()
     returns_panel = prices.returns()[futures]
     cov_cache = rolling_covariance(returns_panel, lookback=COV_LOOKBACK, min_periods=20)
     opt_weights = optimize_path(
@@ -286,7 +286,7 @@ def build_state() -> DashboardState:
     return DashboardState(
         prices=PriceData(adj_clean),
         adj_clean=adj_clean,
-        futures=energy_futures(),
+        futures=all_tradable_futures(),
         fut_adj=fut_adj,
         spy_returns=spy,
         signals=signals,

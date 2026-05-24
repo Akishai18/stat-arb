@@ -36,11 +36,22 @@ log = logging.getLogger(__name__)
 # disaggregated-report codes for the most-actively-traded contract per
 # commodity. Verified against the 2024 annual file (see Phase 6 design notes).
 CFTC_CONTRACT_CODES: dict[str, str] = {
+    # Energy
     "CL=F": "067651",  # WTI Crude Oil (NYMEX, physical-settled)
     "BZ=F": "06765T",  # Brent Last Day (NYMEX-listed Brent)
     "NG=F": "023651",  # Natural Gas (NYMEX Henry Hub)
     "RB=F": "111659",  # RBOB Gasoline (NYMEX)
     "HO=F": "022651",  # NY Harbor ULSD (NYMEX)
+    # Metals (added Phase A1)
+    "GC=F": "088691",  # Gold (COMEX)
+    "SI=F": "084691",  # Silver (COMEX)
+    "HG=F": "085692",  # Copper #1 (COMEX)
+    "PL=F": "076651",  # Platinum (NYMEX)
+    "PA=F": "075651",  # Palladium (NYMEX)
+    # Grains (added Phase A1)
+    "ZC=F": "002602",  # Corn (CBOT)
+    "ZW=F": "001602",  # Wheat-SRW (CBOT)
+    "ZS=F": "005602",  # Soybeans (CBOT)
 }
 
 ARCHIVE_URL = "https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip"

@@ -35,7 +35,7 @@ from statarb.costs import LinearCostModel
 from statarb.data import (
     ETF_FUTURES_PAIRS,
     PriceData,
-    energy_futures,
+    all_tradable_futures,
     mask_known_anomalies,
 )
 from statarb.data.cftc import load_cot_panel
@@ -43,6 +43,7 @@ from statarb.data.eia import EIAKeyMissing, load_eia_panel
 from statarb.evaluation import (
     DEFAULT_IS_END,
     bootstrap_sharpe,
+    deflated_sharpe_ratio,
     evaluate,
     evaluate_by_regime,
     evaluate_walkforward,
@@ -69,6 +70,7 @@ from statarb.signals import (
     realized_carry,
     reversal,
     sharpe_weighted_combine,
+    ts_momentum,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -81,6 +83,7 @@ COST_TABLE_PATH = REPO_ROOT / "reports" / "06_master_cost_table.csv"
 MOM_LOOKBACK = 252
 MOM_SKIP = 21
 REV_LOOKBACK = 5
+TS_MOM_LOOKBACK = 126  # 6-month trailing return (Moskowitz-Ooi-Pedersen 2012)
 CARRY_LOOKBACK = 21
 COT_LOOKBACK_WEEKS = 156
 INVENTORY_SEASONAL_YEARS = 5
@@ -146,7 +149,7 @@ def main() -> int:
     pd_view_raw = PriceData.load()
     adj_clean = mask_known_anomalies(pd_view_raw.adj_close())
     pd_view = PriceData(adj_clean)
-    futures = energy_futures()
+    futures = all_tradable_futures()
     fut_adj = adj_clean[futures]
     spy = pd_view.returns()["SPY"]
     daily_index = adj_clean.index
@@ -154,6 +157,7 @@ def main() -> int:
     # --- Compute the 5 signals (same as Phase 7) ---
     mom_score = momentum(fut_adj, lookback=MOM_LOOKBACK, skip=MOM_SKIP)
     rev_score = reversal(fut_adj, lookback=REV_LOOKBACK)
+    ts_mom_score = ts_momentum(fut_adj, lookback=TS_MOM_LOOKBACK)
     carry_raw = realized_carry(adj_clean, pairs=ETF_FUTURES_PAIRS, lookback=CARRY_LOOKBACK)
     carry_score = pd.DataFrame(index=mom_score.index, columns=mom_score.columns, dtype=float)
     for c in carry_raw.columns:
@@ -177,6 +181,7 @@ def main() -> int:
     all_signals = {
         "momentum": mom_score,
         "reversal": rev_score,
+        "ts_momentum": ts_mom_score,
         "carry": carry_score,
         "cot": cot_score,
     }
@@ -298,6 +303,53 @@ def main() -> int:
             })
     pd.DataFrame(bootstrap_rows).to_csv(
         REPO_ROOT / "reports" / "06_bootstrap_sharpe.csv", index=False,
+    )
+
+    # --- Deflated Sharpe Ratio (multiple-testing correction) ---
+    print("\n" + "=" * 76)
+    print("DEFLATED SHARPE RATIO (Bailey-Lopez de Prado 2014)")
+    print("=" * 76)
+    print("DSR penalizes the headline Sharpe for the number of trials run during")
+    print("model selection (signal choice, hyperparameter sweep). DSR > 0.95 = the")
+    print("strategy beats the expected-max-Sharpe under no-skill at 95% confidence.")
+    print()
+    # Trial-count choice (documented and conservative):
+    #   6 signals + 9 optimizer-hyperparam combos + 3 portfolio constructions
+    #   + 4 cost levels + sweep across lookbacks ~= 25 "trials" worth tracking.
+    # Sensitivity at N=10 and N=50 reported below.
+    N_TRIALS_HEADLINE = 25
+    dsr_rows: list[dict] = []
+    for strategy_label, res in (
+        ("optimizer_locked", headline_opt),
+        ("baseline_eq_carry+cot", headline_baseline),
+    ):
+        net = res.net_returns
+        is_net, oos_net = split_in_out_sample(net, in_sample_end=DEFAULT_IS_END)
+        for window_label, returns in (
+            ("Full", net),
+            ("In-sample", is_net),
+            ("Out-of-sample", oos_net),
+        ):
+            for n_trials in (1, 10, N_TRIALS_HEADLINE, 50):
+                d = deflated_sharpe_ratio(returns, n_trials=n_trials)
+                sig = "**SIG**" if d.is_significant_at_5pct else "n.s."
+                if n_trials == N_TRIALS_HEADLINE:
+                    print(f"  {strategy_label:>26} | {window_label:>13} | "
+                          f"N={n_trials:>3}: {d}  {sig}")
+                dsr_rows.append({
+                    "strategy": strategy_label,
+                    "window": window_label,
+                    "n_trials": n_trials,
+                    "point_sharpe": round(d.point_sharpe, 3),
+                    "expected_max_sharpe_null": round(d.expected_max_sharpe, 3),
+                    "psr_vs_zero": round(d.psr, 4),
+                    "dsr": round(d.dsr, 4),
+                    "skewness": round(d.skewness, 3),
+                    "kurtosis": round(d.kurtosis, 3),
+                    "significant_at_5pct": d.is_significant_at_5pct,
+                })
+    pd.DataFrame(dsr_rows).to_csv(
+        REPO_ROOT / "reports" / "06_deflated_sharpe.csv", index=False,
     )
 
     # --- Master cost table ---
