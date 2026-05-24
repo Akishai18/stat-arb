@@ -42,6 +42,7 @@ from statarb.data.cftc import load_cot_panel
 from statarb.data.eia import EIAKeyMissing, load_eia_panel
 from statarb.evaluation import (
     DEFAULT_IS_END,
+    bootstrap_sharpe,
     evaluate,
     evaluate_by_regime,
     evaluate_walkforward,
@@ -260,6 +261,44 @@ def main() -> int:
     for w in ("in_sample", "out_of_sample", "full"):
         print(f"  {w:>14}: {wf_b[w]}")
         rows.append(_row("baseline_eq_carry+cot", w, wf_b[w]))
+
+    # --- Block-bootstrap Sharpe CIs for the headline ---
+    print("\n" + "=" * 76)
+    print("BLOCK-BOOTSTRAP SHARPE CONFIDENCE INTERVALS")
+    print("=" * 76)
+    print("Block-bootstrap (block=20 days, 5000 resamples) -- accounts for")
+    print("serial dependence in daily strategy returns.")
+    print()
+    bootstrap_rows: list[dict] = []
+    for strategy_label, res in (
+        ("optimizer_locked (full window)", headline_opt),
+        ("baseline_eq_carry+cot (full window)", headline_baseline),
+    ):
+        net = res.net_returns
+        is_net, oos_net = split_in_out_sample(net, in_sample_end=DEFAULT_IS_END)
+        for window_label, returns in (
+            ("Full", net),
+            ("In-sample", is_net),
+            ("Out-of-sample", oos_net),
+        ):
+            b = bootstrap_sharpe(returns, n_resamples=5000, block_length=20, rng_seed=0)
+            sig = "**SIG**" if b.is_significant_at_5pct else "n.s."
+            print(f"  {strategy_label:>38} | {window_label:>13}: {b}  {sig}")
+            bootstrap_rows.append({
+                "strategy": strategy_label,
+                "window": window_label,
+                "point_sharpe": round(b.point_sharpe, 3),
+                "bootstrap_mean": round(b.bootstrap_mean, 3),
+                "ci_low_95": round(b.ci_low, 3),
+                "ci_high_95": round(b.ci_high, 3),
+                "t_stat": round(b.t_stat, 3),
+                "p_value_sharpe_leq_0": round(b.p_value_neg, 4),
+                "significant_at_5pct": b.is_significant_at_5pct,
+                "n_obs": b.n_obs,
+            })
+    pd.DataFrame(bootstrap_rows).to_csv(
+        REPO_ROOT / "reports" / "06_bootstrap_sharpe.csv", index=False,
+    )
 
     # --- Master cost table ---
     print("\n" + "=" * 76)

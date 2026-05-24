@@ -4,6 +4,7 @@ Metrics (Sharpe, Sortino, drawdown, turnover, hit rate, beta/alpha vs
 benchmark), walk-forward splits, and plots.
 """
 
+from statarb.evaluation.bootstrap import BootstrapResult, bootstrap_sharpe
 from statarb.evaluation.metrics import (
     PerformanceReport,
     annualized_return,
@@ -34,10 +35,12 @@ from statarb.evaluation.walk_forward import (
 
 __all__ = [
     "DEFAULT_IS_END",
+    "BootstrapResult",
     "PerformanceReport",
     "annualized_return",
     "annualized_vol",
     "beta_alpha",
+    "bootstrap_sharpe",
     "cagr",
     "daily_hit_rate",
     "evaluate",

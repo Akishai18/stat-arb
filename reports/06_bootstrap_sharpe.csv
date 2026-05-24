@@ -1,0 +1,7 @@
+strategy,window,point_sharpe,bootstrap_mean,ci_low_95,ci_high_95,t_stat,p_value_sharpe_leq_0,significant_at_5pct,n_obs
+optimizer_locked (full window),Full,0.275,0.253,-0.225,0.711,1.153,0.15,False,3745
+optimizer_locked (full window),In-sample,0.331,0.303,-0.3,0.878,1.091,0.1532,False,1887
+optimizer_locked (full window),Out-of-sample,0.239,0.192,-0.54,0.889,0.656,0.2952,False,1858
+baseline_eq_carry+cot (full window),Full,0.175,0.17,-0.301,0.655,0.715,0.2462,False,3745
+baseline_eq_carry+cot (full window),In-sample,0.042,0.037,-0.602,0.667,0.129,0.4534,False,1887
+baseline_eq_carry+cot (full window),Out-of-sample,0.283,0.28,-0.419,0.996,0.778,0.2224,False,1858

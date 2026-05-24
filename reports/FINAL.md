@@ -2,7 +2,7 @@
 
 ## One-paragraph summary
 
-This project built a systematic statistical-arbitrage platform for energy commodities. I started with the hypothesis that classical cross-sectional signals (momentum, short-term reversal) should produce alpha and learned that they don't — neither on ETF proxies nor on clean futures. The signals that *do* work are the ones with economic content: a curve-carry proxy (long backwardation / short contango, +0.37 Sharpe standalone) and CFTC managed-money positioning (negated 3-year z-score, +0.19 Sharpe). An EIA inventory-surprise signal carries information but has the wrong sign or wrong execution timing as implemented — a finding I deliberately did not "fix" post-hoc. Combining the surviving signals via a daily `cvxpy` mean-variance optimizer (with gross/net/position constraints) produces a strategy with full-window Sharpe +0.28 at 10 bps per side, 12.7% volatility, -26% max drawdown, and consistent positive Sharpe in IS, OOS, and across VIX/energy/period regime cuts. The strategy is not deployable as-is, but its shape (low vol, modest drawdown, cost-sensitivity slope) is the shape of a real strategy. The deeper outcome is the platform: a modular, walk-forward-disciplined research pipeline with 133 passing tests and reproducible scripts that turn raw market and economic data into reproducible signals, weights, returns, and reports.
+This project built a systematic statistical-arbitrage platform for energy commodities. I started with the hypothesis that classical cross-sectional signals (momentum, short-term reversal) should produce alpha and learned that they don't — neither on ETF proxies nor on clean futures. The signals that *do* work are the ones with economic content: a curve-carry proxy (long backwardation / short contango, +0.37 Sharpe standalone) and CFTC managed-money positioning (negated 3-year z-score, +0.19 Sharpe). An EIA inventory-surprise signal carries information but has the wrong sign or wrong execution timing as implemented — a finding I deliberately did not "fix" post-hoc. Combining the surviving signals via a daily `cvxpy` mean-variance optimizer (with gross/net/position constraints) produces a strategy with full-window point Sharpe **+0.275** at 10 bps per side, 12.7% volatility, and -26% max drawdown across 15 years. **Block-bootstrap confidence intervals reveal that this Sharpe is not statistically distinguishable from zero at the 5% level** (95% CI `[-0.225, +0.711]`, t-stat 1.15, p = 0.15) — a finding that is itself the most important result of the project: with realistic data and walk-forward discipline, what looks like a positive edge is sample-size-limited. The strategy is not deployable, but the *platform* is — a modular, walk-forward-disciplined research pipeline with 143 passing tests, block-bootstrap significance testing, and reproducible scripts that turn raw market and economic data into honest signal-evaluation outputs.
 
 ## The one-line thesis
 
@@ -32,7 +32,7 @@ This project built a systematic statistical-arbitrage platform for energy commod
 **Engine:**
 - Vectorized, no-lookahead-by-construction (single one-day lag rule enforced at the engine boundary)
 - Linear and zero-cost models
-- 133-test suite including a "cheat signal" test that detects any lookahead bug
+- 143-test suite including a "cheat signal" test that detects any lookahead bug
 
 **Portfolio construction (4 layers):**
 1. Equal-weight long top decile / short bottom decile (Phases 3-4)
@@ -69,6 +69,45 @@ The headline strategy is the **Phase 7 optimizer** with locked hyperparameters:
 
 ![Headline equity curve vs SPY](charts/06_headline_equity_curve.png)
 ![Headline drawdown](charts/06_headline_drawdown.png)
+
+## Statistical significance (the load-bearing honest section)
+
+A Sharpe ratio of +0.28 over 15 years sounds modest but real. Block-bootstrap confidence intervals tell a different story.
+
+**Method.** Resampled 5,000 times with replacement, using **20-day blocks** to preserve serial dependence in daily strategy returns (an iid bootstrap would understate the sampling variance because consecutive days are auto-correlated through the same positions). Reported below: 95% percentile CI, t-statistic (point Sharpe / bootstrap std), and `p(Sharpe ≤ 0)` (fraction of bootstrap replications where Sharpe was non-positive).
+
+| Strategy / Window | Days | Point Sharpe | 95% CI | t-stat | p(Sharpe ≤ 0) | Significant at 5%? |
+|---|---:|---:|:---:|---:|---:|:---:|
+| **Optimizer (headline), Full** | 3,745 | **+0.275** | **[-0.225, +0.711]** | +1.15 | 0.150 | **No** |
+| Optimizer, In-sample | 1,887 | +0.331 | [-0.300, +0.878] | +1.09 | 0.153 | No |
+| Optimizer, Out-of-sample | 1,858 | +0.239 | [-0.540, +0.889] | +0.66 | 0.295 | No |
+| Baseline (eq-weight), Full | 3,745 | +0.175 | [-0.301, +0.655] | +0.71 | 0.246 | No |
+| Baseline, In-sample | 1,887 | +0.042 | [-0.602, +0.667] | +0.13 | 0.453 | No |
+| Baseline, Out-of-sample | 1,858 | +0.283 | [-0.419, +0.996] | +0.78 | 0.222 | No |
+
+### Reading this
+
+**Every 95% CI straddles zero.** The strategy's positive Sharpe could plausibly be (a) ~+0.7 — a respectable result worth deploying — or (b) ~-0.2 — a small bleed pretending to be a signal. With 15 years of daily data we cannot tell which.
+
+This is **the most important finding of the project**, and it is exactly the kind of result that gets glossed over in less-rigorous backtests. Three years of data isn't enough to declare a +0.3-Sharpe strategy "real"; neither is fifteen. The strategy's *direction* is positive in every window we sliced (Full, IS, OOS, both strategies) — that's something — but the magnitude is sample-size-limited.
+
+### Why this isn't fatal
+
+1. **The platform tested the hypothesis correctly.** The point estimate is positive across IS, OOS, and full windows. The walk-forward and regime analyses are internally consistent. If the underlying signal is real and a longer / wider sample becomes available, the platform will reveal it.
+
+2. **Power matters.** The standard error of a Sharpe estimate over N years is approximately `1/√N`. To detect a true Sharpe of 0.5 at α=5% with 80% power, we'd need ~30 years of daily data — twice what's available. Or, equivalently: a wider universe (10-20 commodities instead of 5) would increase effective sample size and tighten the CI.
+
+3. **Direction-of-finding signals are robust.** Across every cut — IS vs OOS, regime breakdowns, signal-attribution, cost levels — the *qualitative* story holds: economic signals (carry, COT) beat price signals (momentum, reversal) which fail systematically. That's a finding about the *space* of signals, and it doesn't depend on the precise point estimate.
+
+### What this means for deployment
+
+**Not deployable as-is**, and we now have a precise statistical reason rather than just a qualitative one. Before deploying, you'd want:
+- a wider universe (10+ instruments) to raise effective N
+- direct curve carry (not the ETF proxy) to reduce noise
+- a longer sample (paid pre-2010 futures data)
+- or a much higher point estimate (Sharpe target ≥ 1.0 before betting size)
+
+The bootstrap calculation itself is `evaluation.bootstrap.bootstrap_sharpe` — 90 lines of code, 10 unit tests (including one that proves the block bootstrap correctly widens CIs on AR(1) data vs iid bootstrap). The full output is in `reports/06_bootstrap_sharpe.csv`.
 
 ## Master cost-sensitivity table
 
@@ -147,6 +186,7 @@ Key observations:
 
 ## Limitations — what I am NOT claiming
 
+- **The Sharpe is not statistically significant.** See the Statistical Significance section above. 95% CI is `[-0.23, +0.71]`. p-value is 0.15. The point estimate is consistent across IS, OOS, and full windows, but the bootstrap CI does not exclude zero. This is the most important limitation.
 - **Sharpe +0.28 at 10 bps is not deployable.** Real funds target 1.0+. This is "the first thing that isn't broken", not "ready to allocate to."
 - **The carry signal is a proxy, not direct curve observation.** Without paid Nasdaq Data Link data we can't compute true `(P_far - P_near) / P_near` historically. The ETF-vs-futures spread is well-grounded but conflates carry with ETF expense ratios and ETF-specific roll timing.
 - **WTI's 2020-04-20 negative-price day is masked.** Documented in `data/cleaning.py` as a known data anomaly. A real strategy would have to handle this explicitly (stop-loss or position liquidation).
@@ -174,7 +214,7 @@ Three angles, all true descriptions of the same project — emphasis varies per 
 > Built a systematic energy-commodities research platform that combined curve carry, CFTC managed-money positioning, EIA inventory surprises, momentum, and reversal signals into a long/short futures portfolio. Used walk-forward IS/OOS validation, cost sensitivity from 0-25 bps, and four-regime conditional analysis to honestly assess each signal's edge. Headline strategy: Sharpe-weighted signal blend with `cvxpy` constrained mean-variance optimization, full-window Sharpe +0.28 at 10 bps, 12.7% annualized vol, -26% max drawdown across 15 years of CME data.
 
 **Quant engineering:**
-> Designed and implemented a modular, vectorized Python backtesting engine enforcing point-in-time data access and a single-source-of-truth anti-lookahead lag, with 133 unit tests including a "cheat-signal" trap that detects any future-data leak. Built ingestion pipelines for yfinance prices, CFTC weekly COT, and EIA petroleum data with release-date discipline (Friday for COT, Wednesday for EIA). Implemented a `cvxpy` daily QP solver under gross / net / per-asset / turnover constraints with rolling sample covariance and warm-start; 16 years of daily solves run in under a minute.
+> Designed and implemented a modular, vectorized Python backtesting engine enforcing point-in-time data access and a single-source-of-truth anti-lookahead lag, with 143 unit tests including a "cheat-signal" trap that detects any future-data leak. Built ingestion pipelines for yfinance prices, CFTC weekly COT, and EIA petroleum data with release-date discipline (Friday for COT, Wednesday for EIA). Implemented a `cvxpy` daily QP solver under gross / net / per-asset / turnover constraints with rolling sample covariance and warm-start; 16 years of daily solves run in under a minute.
 
 **Trading / strategy:**
 > Demonstrated that pure price signals (momentum, reversal) fail in a small commodity cross-section while economically grounded signals (futures-curve carry, CFTC speculator positioning) produce positive alpha. Documented that hard turnover caps underperform soft cost penalties for cost control; that equal-weight signal aggregation fails on heterogeneous signal quality; and that the strategy harvests volatility (works best when realized vol is high). Reported each finding under walk-forward IS/OOS discipline with per-regime conditional analysis and full cost sensitivity.
@@ -221,7 +261,7 @@ stat-arb/
 │   ├── costs/                                  # linear + zero cost models
 │   ├── evaluation/                             # metrics + walk-forward + regimes + plots
 │   └── cli/                                    # ingest CLIs
-├── tests/                                      # 133 passing tests
+├── tests/                                      # 143 passing tests
 ├── scripts/                                    # six runners, one per phase
 └── reports/
     ├── 01_momentum.md
@@ -233,4 +273,4 @@ stat-arb/
     └── charts/                                 # PNGs referenced inline
 ```
 
-133 tests pass; ruff clean; every chart and metric reproducible via the script that produced it.
+143 tests pass; ruff clean; every chart and metric reproducible via the script that produced it.
