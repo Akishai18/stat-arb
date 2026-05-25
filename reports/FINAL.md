@@ -69,6 +69,52 @@ Three findings worth highlighting:
 
 **A sixth signal — time-series momentum — was added during A5 but dropped by the Sharpe-weighted blend (IS Sharpe -0.96).** Like cross-sectional momentum and reversal, time-series momentum doesn't generalize on this universe. The blend's "drop non-positive IS Sharpe" rule protected the headline; the addition is documented for completeness in `signals/ts_momentum.py`.
 
+### Year-by-year baseline performance (Phase A2)
+
+The single most-convincing visualization for "does this work consistently?":
+
+| Years positive | 15 / 16 (94%) |
+|---|---:|
+| Median annual Sharpe | **+0.78** |
+| Best year (Sharpe) | 2015: +2.52 (+23.3% return) |
+| Worst year (Sharpe) | 2014: -0.27 (-2.1% return) |
+| Years with Sharpe > 0.5 | 13 / 16 (81%) |
+| Single-year max loss | -2.4% |
+
+**The baseline produced positive Sharpe in 15 of 16 calendar years 2011-2026.** The only losing year (2014) had a Sharpe of -0.27 and a -2.1% return — a barely-perceptible loss within sample variance. Year-by-year individual significance is generally not reached (single-year sample sizes are ~250 obs, too small) but the direction of the realized Sharpe is overwhelmingly positive.
+
+![Annual Sharpe of baseline](charts/08_annual_sharpe_baseline.png)
+
+### Carry-signal validation (Phase A4)
+
+The headline strategy uses an ETF-proxy carry signal. **A4 tested whether that proxy actually tracks direct futures-curve calendar-spread carry.** The full validation requires historical front-vs-second-nearby contract data, which yfinance doesn't preserve (expired contracts return 404). The cleanest validation possible with free data uses currently-active WTI contracts on the recent 163-day window where their time-to-maturity is short enough to match conventional calendar carry.
+
+| Metric | Value |
+|---|---:|
+| Sample window | 2025-09-23 → 2026-05-15 (163 obs) |
+| Far-leg TTM | 90-270 days (~3-9 months out) |
+| **Pearson correlation** | **+0.58** |
+| **Spearman correlation** | **+0.55** |
+| **Sign agreement (backwardation vs contango)** | **85% of days** |
+
+**The proxy correlates moderately well with direct curve carry over the window where both are measurable on comparable timescales.** ~42% of variation is ETF-specific (expense ratio, lumpy roll timing, sampling noise from the 21-day window). The signal IS capturing real curve dynamics — direction is right 85% of the time — but is not a perfect direct measure. Paid Nasdaq Data Link data would let us validate over the full 2010-2026 window across all 13 commodities; with free data the validation is limited to this short, single-commodity window. See `reports/09_calendar_carry_validation.md` for the full analysis.
+
+### Walk-forward optimizer (Phase A2): confirms the optimizer's failure is structural
+
+To rule out "the optimizer would work if we re-fit signal weights every year," we ran an expanding-window walk-forward: at each calendar year from 2015 onward, IS Sharpes for each of the 6 signals were re-computed on all prior data, the Sharpe-weighted alpha blend was rebuilt, and the cvxpy optimizer (locked Phase 7 hyperparameters) was run on the test year.
+
+| Metric | Value |
+|---|---:|
+| Walk-forward overall Sharpe | **+0.091** |
+| 95% bootstrap CI | **[-0.49, +0.58]** |
+| p(Sharpe ≤ 0) | 0.42 |
+| Significant at 5%? | No |
+| Baseline OOS Sharpe over same 2015-2026 window | ~+1.0 |
+
+**Re-fitting signal weights yearly did not save the optimizer.** It still underperforms the simpler equal-weight baseline by ~0.9 Sharpe units. Direct evidence that the optimizer's failure is structural (covariance undersampling + Markowitz fragility on a small cross-section), not a problem with the static signal-Sharpe blend.
+
+See `reports/08_walkforward.md` for the full per-year breakdown.
+
 | Metric | IS | OOS | Full |
 |---|---:|---:|---:|
 | CAGR | +8.16% | +13.61% | +10.84% |
@@ -209,7 +255,7 @@ Total remaining engineering work: ~10-15 days plus 3-6 months of calendar time f
 > Built a systematic commodities research platform that established curve carry + CFTC managed-money positioning as a long/short edge across 13 energy, metals, and grains futures. Headline Sharpe of +1.00 over 15 years, walk-forward IS/OOS validated, with block-bootstrap CI [+0.54, +1.43] (p < 0.001) excluding zero and Deflated Sharpe Ratio = 0.94 after multiple-testing correction. Sensitivity sweeps across leave-one-commodity-out, alternate splits, and alternate signal lookbacks confirm Sharpe ∈ [+0.65, +1.27] under every perturbation. Demonstrated that cross-sectional momentum, time-series momentum, and reversal all fail on this universe while economic signals generalize across regimes and the post-2022 energy shock.
 
 **Quant engineering:**
-> Designed a modular, vectorized Python backtesting engine enforcing point-in-time data access and a single-source-of-truth anti-lookahead lag, with 169 unit tests including a "cheat-signal" trap and an AR(1) block-bootstrap-vs-iid CI-width comparison. Ingestion pipelines for yfinance prices, weekly CFTC COT, and EIA WPSR with release-date discipline. Streamlit + Plotly dashboard with cached pipeline (single optimizer run per session). Block-bootstrap statistical testing and rolling-covariance cvxpy optimizer (locked but ultimately replaced with simpler quantile baseline after universe expansion revealed Markowitz overfit).
+> Designed a modular, vectorized Python backtesting engine enforcing point-in-time data access and a single-source-of-truth anti-lookahead lag, with 176 unit tests including a "cheat-signal" trap and an AR(1) block-bootstrap-vs-iid CI-width comparison. Ingestion pipelines for yfinance prices, weekly CFTC COT, and EIA WPSR with release-date discipline. Streamlit + Plotly dashboard with cached pipeline (single optimizer run per session). Block-bootstrap statistical testing and rolling-covariance cvxpy optimizer (locked but ultimately replaced with simpler quantile baseline after universe expansion revealed Markowitz overfit).
 
 **Trading / strategy:**
 > Tested both a Phase 7 mean-variance cvxpy optimizer and a simpler equal-weight quantile portfolio on the same 13-commodity carry + COT signal blend. Documented that the simpler portfolio dominated (+1.00 vs +0.15 Sharpe at 10 bps) because mean-variance optimization is fragile on small cross-sections with sample-covariance estimation noise. Reported the finding honestly rather than tuning around it. Master cost-sensitivity (0/5/10/25 bps) and regime breakdowns (VIX, energy bull/bear, pre/post-2022, strategy vol) all confirmed positive Sharpe under perturbation.
@@ -242,7 +288,7 @@ uv run python scripts/run_optimization.py              # Phase 7
 uv run python scripts/run_final_evaluation.py          # Phase 8 + A1
 
 # Verify
-uv run pytest    # 169 tests
+uv run pytest    # 176 tests
 ```
 
 All numbers in this document come from `scripts/run_final_evaluation.py`. Charts are in `reports/charts/06_*.png`. Supporting CSVs are `06_final_metrics.csv`, `06_regime_table.csv`, `06_master_cost_table.csv`, `06_bootstrap_sharpe.csv`, and `06_deflated_sharpe.csv` (the per-N-trials sensitivity table).
@@ -262,7 +308,7 @@ stat-arb/
 │   ├── evaluation/             # metrics + walk-forward + regimes + bootstrap + plots
 │   ├── dashboard/              # streamlit app + cached state + 7 view modules
 │   └── cli/                    # ingestion entrypoints
-├── tests/                      # 169 passing tests
+├── tests/                      # 176 passing tests
 ├── scripts/                    # six per-phase runners + dashboard launcher
 └── reports/
     ├── 01_momentum.md
@@ -271,8 +317,10 @@ stat-arb/
     ├── 04_macro_signals.md
     ├── 05_portfolio_construction.md
     ├── 07_sensitivity.md       # Phase A6 robustness sweeps
+    ├── 08_walkforward.md       # Phase A2 year-by-year + walk-forward
+    ├── 09_calendar_carry_validation.md  # Phase A4 carry-proxy validation
     ├── FINAL.md                # ← this document
     └── charts/                 # PNGs referenced inline
 ```
 
-**169 tests pass; ruff clean; the headline result is statistically significant; the platform is the deliverable.**
+**176 tests pass; ruff clean; the headline result is statistically significant; the platform is the deliverable.**

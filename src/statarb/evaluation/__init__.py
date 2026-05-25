@@ -35,15 +35,19 @@ from statarb.evaluation.regimes import (
 )
 from statarb.evaluation.walk_forward import (
     DEFAULT_IS_END,
+    AnnualSharpeRow,
+    annual_sharpe_table,
     evaluate_walkforward,
     split_in_out_sample,
 )
 
 __all__ = [
     "DEFAULT_IS_END",
+    "AnnualSharpeRow",
     "BootstrapResult",
     "DSRResult",
     "PerformanceReport",
+    "annual_sharpe_table",
     "annualized_return",
     "annualized_vol",
     "beta_alpha",
