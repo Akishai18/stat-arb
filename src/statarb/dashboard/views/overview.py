@@ -22,14 +22,22 @@ def render(state: DashboardState) -> None:
     wf = evaluate_walkforward_cached(result, state.spy_returns)
     full = wf["full"]
 
-    # Metric cards
+    # Metric cards — deltas give Bloomberg-style green/red coloring
     cols = st.columns(6)
-    cols[0].metric("Sharpe (full)", f"{full.sharpe:+.2f}")
-    cols[1].metric("CAGR", f"{full.cagr:+.2%}")
-    cols[2].metric("Ann vol", f"{full.ann_vol:.2%}")
-    cols[3].metric("Max DD", f"{full.max_drawdown:.2%}")
-    cols[4].metric("Ann turnover", f"{full.ann_turnover:.1f}x")
-    cols[5].metric("Alpha vs SPY", f"{full.alpha_ann:+.2%}" if full.alpha_ann is not None else "n/a")
+    cols[0].metric("SHARPE (FULL)", f"{full.sharpe:+.2f}",
+                   delta=f"{full.sharpe:+.2f}", delta_color="normal")
+    cols[1].metric("CAGR", f"{full.cagr:+.2%}",
+                   delta=f"{full.cagr:+.2%}", delta_color="normal")
+    cols[2].metric("ANN VOL", f"{full.ann_vol:.2%}")
+    cols[3].metric("MAX DD", f"{full.max_drawdown:.2%}",
+                   delta=f"{full.max_drawdown:.2%}", delta_color="normal")
+    cols[4].metric("TURNOVER", f"{full.ann_turnover:.1f}x")
+    cols[5].metric(
+        "ALPHA vs SPY",
+        f"{full.alpha_ann:+.2%}" if full.alpha_ann is not None else "n/a",
+        delta=(f"{full.alpha_ann:+.2%}" if full.alpha_ann is not None else None),
+        delta_color="normal",
+    )
 
     st.divider()
 

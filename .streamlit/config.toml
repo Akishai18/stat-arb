@@ -1,0 +1,18 @@
+# Bloomberg-terminal-inspired dark theme.
+# Colors chosen to evoke the BBT amber-on-black palette without infringing
+# on the real product's trademark; close enough to read as "trading-desk."
+
+[theme]
+base = "dark"
+primaryColor = "#ff8000"            # Bloomberg amber (used for sliders, buttons, accents)
+backgroundColor = "#000000"          # true black main background
+secondaryBackgroundColor = "#0a0a0a" # near-black for the sidebar + panels
+textColor = "#e0e0e0"                # off-white body text
+font = "monospace"                   # monospace everywhere
+
+[server]
+headless = false
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
