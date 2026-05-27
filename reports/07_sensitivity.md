@@ -1,5 +1,7 @@
 # Phase A6: Sensitivity Sweeps
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** The headline +1.00 Sharpe survives every perturbation tested. Across leave-one-commodity-out, alternate IS/OOS splits, quantile choices, and signal-parameter lookbacks, the realized Sharpe ranges from **+0.65 to +1.27** — comfortably positive in every case. No single instrument, time period, or hyperparameter choice carries the result.
 
 ## What this tests

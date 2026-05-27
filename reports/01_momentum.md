@@ -1,5 +1,7 @@
 # Phase 3: Does 12-1 Cross-Sectional Momentum Work on Energy ETFs?
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** No. In-sample (2011-2018) shows a weak positive Sharpe of 0.20, but out-of-sample (2019-2026-05) the strategy delivers Sharpe -0.70 with a 70% drawdown. The signal does not generalize. This is informative: it tells us pure price-trend signals are unlikely to be the differentiator in this universe, and motivates the curve / inventory / positioning signals planned for Phases 5-6.
 
 ## Hypothesis

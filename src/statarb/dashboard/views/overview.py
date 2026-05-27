@@ -1,4 +1,9 @@
-"""Overview tab: headline metrics + equity + drawdown + IS/OOS table."""
+"""Overview tab: headline metrics + equity + drawdown + IS/OOS table.
+
+Shows the BASELINE strategy (equal-weight quantile carry+cot) because that
+is the deployable headline — Phase 7's cvxpy optimizer was a documented
+underperformer on the wider 13-commodity universe. See FINAL.md.
+"""
 
 from __future__ import annotations
 
@@ -12,15 +17,18 @@ from statarb.dashboard.style import drawdown_figure, equity_curve_figure
 def render(state: DashboardState) -> None:
     st.subheader("Headline strategy")
     st.caption(
-        f"Sharpe-weighted blend ({', '.join(state.surviving_signals)}) → "
-        f"daily cvxpy QP (λ=50, gross=1.0, net=0.05, pos cap=0.40). "
+        f"Equal-weight cross-sectional z-score blend of {', '.join(state.surviving_signals)}, "
+        f"long top 40% / short bottom 40%, dollar-neutral, daily rebalance. "
         f"Backtest spans {state.first_valid.date()} → {state.opt_weights.index.max().date()}."
     )
 
     bps = st.session_state.get("cost_bps", 10)
-    result = state.optimizer_by_cost[bps]
+    # Headline = BASELINE (FINAL.md). The optimizer is shown alongside for context
+    # in the cost-sensitivity section below.
+    result = state.baseline_by_cost[bps]
     wf = evaluate_walkforward_cached(result, state.spy_returns)
     full = wf["full"]
+    opt_full = evaluate_walkforward_cached(state.optimizer_by_cost[bps], state.spy_returns)["full"]
 
     # Metric cards — deltas give Bloomberg-style green/red coloring
     cols = st.columns(6)
@@ -39,28 +47,34 @@ def render(state: DashboardState) -> None:
         delta_color="normal",
     )
 
+    st.caption(
+        f"For context: the Phase 7 cvxpy optimizer (locked λ=50 hyperparameters) "
+        f"produces Sharpe {opt_full.sharpe:+.2f} on the same universe — a documented "
+        f"Markowitz overfit, replaced by this simpler baseline. See `reports/FINAL.md`."
+    )
+
     st.divider()
 
     # Equity curve + drawdown
     spy_cum = (1.0 + state.spy_returns.loc[result.equity_curve.index.min():]).cumprod()
     eq_fig = equity_curve_figure(
         result.equity_curve, spy_cum,
-        strategy_label=f"optimizer @ {bps} bps",
+        strategy_label=f"baseline @ {bps} bps",
         benchmark_label="SPY",
-        title="Equity curve",
+        title="EQUITY CURVE",
     )
     st.plotly_chart(eq_fig, width='stretch')
 
-    dd_fig = drawdown_figure(result.equity_curve, title="Drawdown")
+    dd_fig = drawdown_figure(result.equity_curve, title="DRAWDOWN")
     st.plotly_chart(dd_fig, width='stretch')
 
     # IS / OOS / Full table
     st.subheader("Walk-forward breakdown")
     rows = []
     for window_label, rep in (
-        ("In-sample (2011-07 → 2018-12-31)", wf["in_sample"]),
-        ("Out-of-sample (2019 →)", wf["out_of_sample"]),
-        ("Full window", wf["full"]),
+        ("IN-SAMPLE (2011-07 → 2018-12-31)", wf["in_sample"]),
+        ("OUT-OF-SAMPLE (2019 →)", wf["out_of_sample"]),
+        ("FULL WINDOW", wf["full"]),
     ):
         rows.append({
             "Window": window_label,

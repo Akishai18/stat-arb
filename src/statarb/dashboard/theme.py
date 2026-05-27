@@ -213,40 +213,47 @@ hr, [data-testid="stMarkdownContainer"] hr {{
 
 /* ------------------------------------------------------------------ */
 /* Top header bar (Bloomberg-style status line)                        */
+/* !important is necessary because the .stMarkdown div generic rule    */
+/* above has higher specificity than a single .bbg-header class.       */
 /* ------------------------------------------------------------------ */
-.bbg-header {{
-    background: linear-gradient(90deg, {BG} 0%, {PANEL_BG} 100%);
-    border-bottom: 1px solid {AMBER_DIM};
-    color: {AMBER};
-    padding: 0.4rem 1rem;
-    margin: -0.5rem -1.5rem 0.5rem -1.5rem;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.stMarkdown .bbg-header, .bbg-header {{
+    background: linear-gradient(90deg, {BG} 0%, {PANEL_BG} 100%) !important;
+    border-bottom: 1px solid {AMBER_DIM} !important;
+    color: {AMBER} !important;
+    padding: 0.4rem 1rem !important;
+    margin: -0.5rem -1.5rem 0.5rem -1.5rem !important;
+    font-family: 'IBM Plex Mono', 'Menlo', monospace !important;
+    font-size: 0.82rem !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
 }}
-.bbg-header .bbg-title {{
-    color: {AMBER};
-    font-weight: 700;
+.stMarkdown .bbg-header .bbg-title, .bbg-header .bbg-title {{
+    color: {AMBER} !important;
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
 }}
-.bbg-header .bbg-title .ticker {{
-    background: {AMBER};
-    color: {BG};
-    padding: 1px 6px;
-    margin-right: 8px;
-    font-weight: 700;
+.stMarkdown .bbg-header .bbg-title .ticker, .bbg-header .bbg-title .ticker {{
+    background: {AMBER} !important;
+    color: {BG} !important;
+    padding: 2px 8px !important;
+    margin-right: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04em !important;
 }}
-.bbg-header .bbg-status {{
-    color: {WHITE_DIM};
+.stMarkdown .bbg-header .bbg-status, .bbg-header .bbg-status {{
+    color: {WHITE_DIM} !important;
+    font-size: 0.78rem !important;
 }}
-.bbg-header .bbg-status .green {{
-    color: {GREEN};
+.stMarkdown .bbg-header .bbg-status .green, .bbg-header .bbg-status .green {{
+    color: {GREEN} !important;
+    font-weight: 700 !important;
 }}
-.bbg-header .bbg-status .amber {{
-    color: {AMBER};
+.stMarkdown .bbg-header .bbg-status .amber, .bbg-header .bbg-status .amber {{
+    color: {AMBER} !important;
+    font-weight: 700 !important;
 }}
 
 /* ------------------------------------------------------------------ */

@@ -48,7 +48,7 @@ def render(state: DashboardState) -> None:
         line=dict(color=NEUTRAL, width=1.6, dash="dash"),
         marker=dict(size=8),
     ))
-    fig.add_hline(y=0, line_color="black", line_width=0.5)
+    fig.add_hline(y=0, line_color=NEUTRAL, line_width=0.5)
     fig.update_layout(**base_layout("Sharpe vs transaction cost"))
     fig.update_xaxes(title_text="cost (bps per side)")
     fig.update_yaxes(title_text="Sharpe (full window)")

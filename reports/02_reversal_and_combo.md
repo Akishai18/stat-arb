@@ -1,5 +1,7 @@
 # Phase 4: Short-Term Reversal, Alone and Combined with Momentum
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** None of the reversal lookbacks (1d, 5d, 21d) is profitable. Combining 5-day reversal with 12-1 momentum *does* produce two genuinely independent signals (Pearson correlation 0.09) — but since neither has positive alpha, the combination has Sharpe ≈ 0 at zero cost and bleeds out from transaction costs at any realistic level. The combination machinery is validated; the input signals are not.
 
 ## Hypothesis

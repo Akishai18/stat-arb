@@ -8,7 +8,7 @@ Systematic commodities research platform — a long/short futures portfolio comb
 
 A 5-commodity (energy-only) earlier version produced Sharpe +0.28 with CI straddling zero. Expanding to 13 commodities (Phase A1) was the breakthrough that made the signal statistically real. Honest details in [`reports/FINAL.md`](./reports/FINAL.md).
 
-The complete project narrative is in [`reports/FINAL.md`](./reports/FINAL.md). The phased plan is in [`PLAN.md`](./PLAN.md). Per-phase reports are in `reports/01_*` through `reports/05_*`.
+The complete project narrative is in [`reports/FINAL.md`](./reports/FINAL.md). The phased plan is in [`PLAN.md`](./PLAN.md). Per-phase reports are `01_*` through `09_*` under [`reports/`](./reports/). The forward-looking roadmap (Layer A → Layer B live trading) is in [`ROADMAP.md`](./ROADMAP.md).
 
 ## Quickstart
 
@@ -32,20 +32,24 @@ uv run python -m statarb.cli.ingest_macro   # CFTC always; EIA if key set
 uv run streamlit run scripts/dashboard.py
 
 # Reproduce all phase reports + the final synthesis
-uv run python scripts/run_momentum.py                # Phase 3
-uv run python scripts/run_reversal_and_combo.py      # Phase 4
-uv run python scripts/run_carry_and_futures.py       # Phase 5
-uv run python scripts/run_macro_signals.py           # Phase 6
-uv run python scripts/run_optimization.py            # Phase 7
-uv run python scripts/run_final_evaluation.py        # Phase 8
+uv run python scripts/run_momentum.py                  # Phase 3 (mom)
+uv run python scripts/run_reversal_and_combo.py        # Phase 4 (reversal + combine)
+uv run python scripts/run_carry_and_futures.py         # Phase 5 (carry)
+uv run python scripts/run_macro_signals.py             # Phase 6 (COT + EIA inventory)
+uv run python scripts/run_optimization.py              # Phase 7 (cvxpy optimizer)
+uv run python scripts/run_final_evaluation.py          # Phase 8 + A1 + A3 (13-comm + bootstrap + DSR)
+uv run python scripts/run_walkforward.py               # Phase A2 (annual + walk-forward)
+uv run python scripts/run_sensitivity.py               # Phase A6 (27 sensitivity sweeps)
+uv run python scripts/run_calendar_carry_validation.py # Phase A4 (carry-proxy validation)
 
 # Verify the pipeline is intact
-uv run pytest    # 133 tests
+uv run pytest    # 176 tests
+uv run ruff check src tests scripts
 ```
 
 ## Interactive dashboard
 
-`scripts/dashboard.py` launches a Streamlit + Plotly app with 7 tabs:
+Bloomberg-terminal-styled Streamlit + Plotly app with 7 tabs:
 
 - **Overview** — headline metrics, equity curve vs SPY, drawdown, IS/OOS/Full table
 - **Today** — latest signal scores per asset, current optimizer weights, rebalance diff
@@ -70,7 +74,7 @@ src/statarb/
   dashboard/    # streamlit app + cached state + 7 view modules
   cli/          # ingestion entrypoints
 scripts/        # per-phase runners + dashboard launcher
-tests/          # 133 passing tests
+tests/          # 176 passing tests
 reports/        # phase reports + FINAL.md + charts
 ```
 

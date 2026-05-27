@@ -1,5 +1,7 @@
 # Phase A4: Validating the ETF-Proxy Carry Signal
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** The headline strategy uses an ETF-vs-futures return spread as a *proxy* for futures-curve carry. Direct validation requires historical front-vs-second-nearby contract prices — which yfinance doesn't preserve (expired contracts return 404). The cleanest validation possible with free data uses currently-active WTI contracts on the recent 8-month window where their time-to-maturity is short enough to match conventional calendar-spread carry. In that 163-day window, the **proxy and the direct calendar-spread carry correlate at Pearson +0.58 with 85% sign agreement**. That's moderate-positive — the proxy captures the direction of curve carry ~85% of the time, with ~42% residual variation coming from ETF-specific mechanics. The headline strategy's interpretation as "long backwardation, short contango" is supported, with appropriate caveats.
 
 ## The validation question

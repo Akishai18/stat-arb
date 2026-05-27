@@ -1,4 +1,8 @@
-"""Today tab: latest signal scores + current optimizer weights + rebalance diff."""
+"""Today tab: latest signal scores + current baseline weights + rebalance diff.
+
+Shows the BASELINE strategy's weights (the headline). The optimizer is
+documented as underperforming this on the wider universe (FINAL.md).
+"""
 
 from __future__ import annotations
 
@@ -10,19 +14,19 @@ from statarb.dashboard.style import BAD, GOOD
 
 
 def render(state: DashboardState) -> None:
-    weights = state.opt_weights
+    weights = state.baseline_weights
 
-    # Last day with non-zero optimizer output (some recent days may lack cov)
+    # Last day with non-zero target weights
     non_empty = weights.abs().sum(axis=1) > 0
     if not non_empty.any():
-        st.error("No optimizer output found in the cached weights.")
+        st.error("No baseline weights found in the cached pipeline.")
         return
     last_day = non_empty[non_empty].index.max()
     prev_day_candidates = non_empty[non_empty].index
     prev_day = prev_day_candidates[prev_day_candidates < last_day].max() if len(prev_day_candidates) > 1 else last_day
 
     st.subheader(f"Latest snapshot — {last_day.date()}")
-    st.caption(f"Most recent day with valid signals and an optimizer solution. Previous trading day: {prev_day.date()}.")
+    st.caption(f"Baseline strategy's target weights for the most recent trading day. Previous day: {prev_day.date()}.")
 
     # Current optimizer weights
     today_w = weights.loc[last_day]
@@ -35,7 +39,7 @@ def render(state: DashboardState) -> None:
         "Today weight": today_w.round(3).values,
         "Change": diff.round(3).values,
     })
-    st.markdown("##### Optimizer target weights")
+    st.markdown("##### Target weights (baseline = headline strategy)")
     st.dataframe(w_df, width='stretch', hide_index=True)
 
     gross = today_w.abs().sum()

@@ -10,11 +10,14 @@ from statarb.dashboard.style import ACCENT, BAD, NEUTRAL, PRIMARY, base_layout
 
 
 def render(state: DashboardState) -> None:
-    weights = state.opt_weights.dropna(how="all")
-    headline = state.optimizer_by_cost[state.headline_cost]
+    weights = state.baseline_weights.dropna(how="all")
+    headline = state.baseline_by_cost[state.headline_cost]
 
     st.subheader("Portfolio diagnostics")
-    st.caption(f"Optimizer weights from the locked Phase 7 strategy at {state.headline_cost} bps/side.")
+    st.caption(
+        f"Baseline (eq-weight quantile carry+cot) — the headline strategy — "
+        f"at {state.headline_cost} bps/side."
+    )
 
     # Weight time series
     fig = go.Figure()
@@ -27,7 +30,7 @@ def render(state: DashboardState) -> None:
         ))
     fig.add_hline(y=POSITION_CAP, line_color=NEUTRAL, line_dash="dot", annotation_text=f"+{POSITION_CAP:.0%} cap")
     fig.add_hline(y=-POSITION_CAP, line_color=NEUTRAL, line_dash="dot", annotation_text=f"-{POSITION_CAP:.0%} cap")
-    fig.add_hline(y=0, line_color="black", line_width=0.5)
+    fig.add_hline(y=0, line_color=NEUTRAL, line_width=0.5)
     fig.update_layout(**base_layout("Optimizer weights over time"))
     fig.update_yaxes(title_text="weight")
     st.plotly_chart(fig, width='stretch')

@@ -1,5 +1,7 @@
 # Phase 5: Futures Universe + The Carry Signal
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** Switching from ETF proxies to yfinance front-month continuous futures did NOT rescue momentum or reversal — they remain unprofitable. But the realized-carry signal (built as the ETF-vs-futures return spread over a 21-day window) **is the first signal in this project with positive standalone Sharpe (+0.40)** over the full window and zero correlation with momentum. Combining all three signals produces an all-window Sharpe of +0.09 at 10 bps and +0.61 at zero cost. This validates the project's thesis: economically motivated signals work where pure price patterns don't.
 
 ## Two questions this phase answers

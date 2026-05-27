@@ -28,7 +28,7 @@ def render(state: DashboardState) -> None:
         format_func=lambda k: REGIME_LABELS[k],
     )
     mask = state.regime_masks[choice]
-    headline = state.optimizer_by_cost[state.headline_cost]
+    headline = state.baseline_by_cost[state.headline_cost]
     split = evaluate_by_regime(headline, regime_mask=mask, benchmark_returns=state.spy_returns)
     in_r, out_r = split["in_regime"], split["out_regime"]
 

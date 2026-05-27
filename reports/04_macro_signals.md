@@ -1,5 +1,7 @@
 # Phase 6: Macro Signals — COT Positioning + EIA Inventory Surprise
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** The CFTC COT positioning signal (negated 3-year z-score of managed money's net positioning) is the second signal in this project with positive standalone alpha — Sharpe **+0.19**, alpha vs SPY **+3.52% annualized**, max DD only **-39%**, turnover only **13×/yr**. Correlation with carry is **0.003** — genuinely independent. The EIA inventory-surprise signal, freshly enabled with an API key, has **negative** standalone Sharpe (-0.64) — opposite to the project's stated hypothesis. But the all-five-signal combo at 0 bps jumps to Sharpe **+0.56** (vs +0.33 without inventory), confirming inventory carries real information; the negative direction suggests either a wrong-sign hypothesis, an overly-crude seasonal baseline, or post-release reversal dominating. The cleanest Phase 6 result is therefore **carry + cot only**, with full Sharpe **+0.17** and **OOS Sharpe +0.28** at 10 bps — and the strongest case yet for Phase 7's formal optimization to weight signals by quality rather than equal.
 
 ## Hypotheses

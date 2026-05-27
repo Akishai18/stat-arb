@@ -90,6 +90,7 @@ class DashboardState:
     # weights + backtest results
     alpha_panel: pd.DataFrame
     opt_weights: pd.DataFrame
+    baseline_weights: pd.DataFrame  # equal-weight quantile carry+cot (= headline)
     optimizer_by_cost: dict[int, BacktestResult]
     baseline_by_cost: dict[int, BacktestResult]
     standalone_by_signal: dict[str, BacktestResult]
@@ -218,7 +219,8 @@ def _standalone_backtests(
 @st.cache_data(show_spinner="Optimizing portfolio (this runs once per session)...")
 def _optimizer_backtests(
     _adj_key: int,
-) -> tuple[pd.DataFrame, pd.DataFrame, dict[int, BacktestResult], dict[int, BacktestResult]]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame,
+           dict[int, BacktestResult], dict[int, BacktestResult]]:
     adj_clean, _, _ = _load_prices()
     prices = PriceData(adj_clean)
     signals, _has_inv, first_valid = _compute_signals(_adj_key)
@@ -256,14 +258,14 @@ def _optimizer_backtests(
     baseline_by_cost = {
         bps: _run(prices, baseline_weights, bps) for bps in COST_LEVELS_BPS
     }
-    return alpha, opt_weights, optimizer_by_cost, baseline_by_cost
+    return alpha, opt_weights, baseline_weights, optimizer_by_cost, baseline_by_cost
 
 
 @st.cache_data(show_spinner="Computing regime masks...")
 def _build_regime_masks(_adj_key: int) -> dict[str, pd.Series]:
     adj_clean, _, _ = _load_prices()
     prices = PriceData(adj_clean)
-    _alpha, _ow, optimizer_by_cost, _ = _optimizer_backtests(_adj_key)
+    _alpha, _ow, _bw, optimizer_by_cost, _ = _optimizer_backtests(_adj_key)
     headline = optimizer_by_cost[HEADLINE_COST_BPS]
     masks = {
         "vix_high": vix_regime(prices.adj_close()["^VIX"]),
@@ -280,7 +282,7 @@ def build_state() -> DashboardState:
     adj_key = int(adj_clean.shape[0])  # simple cache invalidator on row count
     signals, has_inventory, first_valid = _compute_signals(adj_key)
     standalone, is_sharpes = _standalone_backtests(adj_key)
-    alpha, opt_weights, optimizer_by_cost, baseline_by_cost = _optimizer_backtests(adj_key)
+    alpha, opt_weights, baseline_weights, optimizer_by_cost, baseline_by_cost = _optimizer_backtests(adj_key)
     regime_masks = _build_regime_masks(adj_key)
     surviving = [n for n, s in is_sharpes.items() if s > 0]
     return DashboardState(
@@ -295,6 +297,7 @@ def build_state() -> DashboardState:
         first_valid=first_valid,
         alpha_panel=alpha,
         opt_weights=opt_weights,
+        baseline_weights=baseline_weights,
         optimizer_by_cost=optimizer_by_cost,
         baseline_by_cost=baseline_by_cost,
         standalone_by_signal=standalone,

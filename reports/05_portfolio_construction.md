@@ -1,5 +1,7 @@
 # Phase 7: Sharpe-Weighted Signal Blend + Constrained Portfolio Optimization
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** Combining the 5 Phase 6 signals with weights proportional to their in-sample Sharpes (mom, rev, inventory get weight 0; carry and cot get weight ∝ +0.23 each) and then running a daily `cvxpy` QP with a 63-day rolling covariance produces a portfolio with **Full Sharpe +0.28** (vs Phase 6 baseline +0.17), max DD reduced from -41% to **-26%**, and volatility cut almost in half (20.6% → **12.7%**). The 0-bps "signal-only" Sharpe lifts from +0.56 to **+0.79**, the cleanest single demonstration that the optimization is doing real work. OOS Sharpe is essentially flat (+0.24 vs +0.28) — most of the improvement is in IS, vol, and drawdown.
 
 ## Hypothesis

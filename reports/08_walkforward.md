@@ -1,5 +1,7 @@
 # Phase A2: Walk-Forward Analysis
 
+> _Snapshot: numbers in this report were computed when written. Since OOS data accumulates daily and yfinance/CFTC/EIA refresh, re-running may produce slightly different point estimates. The **qualitative findings are stable**; the **canonical headline numbers** are in [`FINAL.md`](./FINAL.md), which is regenerated end-to-end._
+
 **TL;DR.** Two complementary analyses on the locked headline strategy:
 
 1. **Year-by-year baseline:** the equal-weight carry+cot baseline produced **positive Sharpe in 15 of 16 calendar years** (94%) over 2011-2026. Median annual Sharpe **+0.78**, range [-0.27, +2.52]. Worst single-year loss: -2.4% (2014). The consistency-per-year story is the single strongest defense of "this works year after year, not in a few good ones."
