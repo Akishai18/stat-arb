@@ -28,7 +28,7 @@ This project built a systematic statistical-arbitrage platform for commodities. 
 
 The bootstrap CI tells us the strategy's Sharpe is non-zero. But we *tested many strategies* — 5 signals × hyperparameter grids × portfolio constructions — and selecting the best of those introduces selection bias the bootstrap doesn't see. The Bailey-López de Prado (2014) Deflated Sharpe Ratio (DSR) corrects for this by comparing the strategy's Sharpe to the expected maximum Sharpe under N coin-flip trials. **DSR > 0.95 means the strategy beats what you'd expect from picking the best of N random strategies at 95% confidence**, accounting for skewness and kurtosis.
 
-We conservatively count N = **25 trials** (6 signals + 9 optimizer hyperparameter combos + several portfolio constructions + cost-level choices + lookback sweeps). Result:
+Phase A2 replaced the previously hand-waved N with an explicit **line-item trial ledger** of every config the project examined across Phases 3-7 + A6 (see `reports/10_dsr_trials.md`). The honest trial count brackets at **N ∈ [18, 47]** — effective-independent (collapsing near-duplicate return streams) to naive-upper-bound (every config a separate shot on goal). Result at the legacy N = 25, which sits inside that bracket:
 
 | Strategy / Window | Sharpe | PSR(>0) | **DSR (vs 25-trial null)** | Significant after deflation? |
 |---|---:|---:|---:|:---:|
@@ -39,7 +39,7 @@ We conservatively count N = **25 trials** (6 signals + 9 optimizer hyperparamete
 | Optimizer, In-sample | +0.45 | 0.894 | 0.145 | No |
 | Optimizer, Out-of-sample | -0.09 | 0.404 | 0.005 | No |
 
-**The baseline's full-window DSR is 0.942 — just below the binary 95% bar.** Interpretation: there is a 94.2% probability that the strategy's true Sharpe exceeds the expected-max-Sharpe under no-skill, after correcting for 25 trials. Strong evidence the strategy isn't pure selection bias, but does not clear the strict 5% confidence threshold under this trial count. **Sensitivity to N:** at N=20 (the count before TS momentum was added to the search space) the DSR is 0.953, which does clear 95%; at N=50 (more aggressive trial counting) it drops to ~0.93. The binary cutoff depends on where you draw N — an honest interview answer is "DSR = 0.94 under a conservative trial count; just barely passes or just barely fails depending on counting choices."
+**The baseline's full-window DSR is 0.942 at N = 25 — just below the binary 95% bar.** Interpretation: there is a 94.2% probability that the strategy's true Sharpe exceeds the expected-max-Sharpe under no-skill, after correcting for 25 trials. **Sensitivity to N (Phase A2's rigorous sweep):** the static full-window result clears 0.95 only up to a breakeven of **N = 21** (DSR 0.957 at the effective-independent count N = 18; DSR 0.905 at the naive count N = 47). The walk-forward OOS trace (the A-1 deliverable, Sharpe +1.05) is *harder* to pass despite its higher Sharpe — it clears 0.95 only up to **N = 10** — because it has fewer observations (2,867 vs 3,748 days) and `E[max | null]` scales with √(252/T). **The honest verdict is borderline (YELLOW), not a clean pass:** the strategy clears the strict multiple-testing bar under the most generous counting on the longest window and fails it under conservative counting or on the cleaner out-of-sample trace. The interview-ready summary: *"Bootstrap-significant with CI [+0.54, +1.43]; DSR ≈ 0.91–0.96 depending on how you count the ~18–47 trials — right on the 95% threshold, not clearly past it."* Full analysis in `reports/10_dsr_trials.md`.
 
 **The optimizer's DSR is 0.041 — essentially zero, robust across N.** Regardless of the trial-count assumption (we tested N ∈ {1, 10, 25, 50}), the optimizer's Sharpe of +0.15 is well within what you'd expect from picking the best of N random strategies. This confirms the bootstrap CI finding: the Phase 7 optimizer doesn't have demonstrable edge after model-selection correction.
 
@@ -98,6 +98,33 @@ The headline strategy uses an ETF-proxy carry signal. **A4 tested whether that p
 | **Sign agreement (backwardation vs contango)** | **85% of days** |
 
 **The proxy correlates moderately well with direct curve carry over the window where both are measurable on comparable timescales.** ~42% of variation is ETF-specific (expense ratio, lumpy roll timing, sampling noise from the 21-day window). The signal IS capturing real curve dynamics — direction is right 85% of the time — but is not a perfect direct measure. Paid Nasdaq Data Link data would let us validate over the full 2010-2026 window across all 13 commodities; with free data the validation is limited to this short, single-commodity window. See `reports/09_calendar_carry_validation.md` for the full analysis.
+
+### Information coefficient + signal decay (research-firming A-3)
+
+The bootstrap and DSR establish that the *portfolio* has edge. A-3 asks the question one rung down: do the *individual signals* actually predict cross-sectional forward returns, and over what horizon? The method is the lookahead-free Grinold-Kahn information coefficient — the daily cross-sectional Spearman correlation between the **one-day-lagged signal** (exactly as the backtester trades it) and the realized h-day forward return — paired with cross-sectional rank autocorrelation to measure how fast each signal's ranking decays.
+
+The honest answer is **weak-but-coherent, not strong.** No single signal clears a |t| ≥ 2 information coefficient in the direction it is traded:
+
+| Signal | IC-IR @1d | @5d | @21d | @63d | peak IC-IR | rank-autocorr @21d | reading |
+|---|---:|---:|---:|---:|---|---:|---|
+| **carry** | +0.016 | +0.022 | −0.034 | −0.023 | −0.034 | 0.13 | ≈ 0 IC; fast-decaying (~1-2wk) |
+| **cot** | +0.029 | +0.037 | +0.108 | **+0.124** | **+0.124 @63d** | **0.75** | right-signed, rises with horizon; very slow |
+| inventory | −0.013 | −0.012 | −0.021 | −0.021 | −0.021 | 0.03 | ≈ 0; spiky |
+| ts_momentum | −0.007 | −0.062 | **−0.164 (t −2.18\*)** | −0.206 | −0.206 @63d | 0.71 | **significant & contrarian** |
+| momentum | +0.022 | −0.001 | −0.043 | −0.029 | −0.043 | 0.82 | ≈ 0; persistent but not predictive |
+| reversal | −0.019 | +0.017 | +0.050 | +0.090 | +0.090 @63d | 0.00 | weak, noisy |
+
+`*` = the only |overlap-adjusted t| ≥ 2 in the panel. Full tables: `reports/11_ic_analysis.csv`, `reports/11_signal_autocorr.csv`; charts `11_ic_by_horizon.png`, `11_signal_decay.png`.
+
+Three readings, reported straight:
+
+1. **COT is the one legitimate single signal, and IC and persistence agree.** Its IC is small but consistently positive and *grows monotonically with horizon* (IC-IR +0.029 → +0.124), while the ranking is extremely persistent (autocorr 0.75 at 21d, 0.49 at 63d). Two independent measurements telling the same story: managed-money positioning is a *slow* factor whose information accrues over weeks-to-months. The caveat is significance — even at its best the overlap-adjusted t is only +1.43 (21d). It points the right way; it does not clear t = 2.
+
+2. **Carry's cross-sectional IC is ≈ 0 at every horizon, yet it earns in the book.** This is the uncomfortable, un-spun result. The reconciliation: full-universe Spearman over only 13 names/day is a low-power statistic; the quantile book trades only the *tails* of the carry+COT *blend*, not the full single-signal ranking; and carry decays fast (autocorr 0.72 → 0.13 by 21d), so its edge is short-horizon. Carry's contribution is real in the portfolio but **not demonstrable as a standalone cross-sectional predictor at this sample size.**
+
+3. **The only significant IC is ts_momentum at 21d, and it is negative (t = −2.18) — i.e. contrarian.** This validates the survivor selection: ts_momentum was dropped, and had it been included as a momentum-*direction* bet it would have been wrong-signed. Note also that *persistent ≠ predictive* — momentum/ts_momentum are the most persistent signals but have zero or wrong-signed IC.
+
+**Bottom line: A-3 corroborates the A-2 YELLOW.** The portfolio edge is real but thin and concentrated — it lives in the carry+COT combination and the tails the quantile book trades, not in a strong monotone ranking from either signal alone. Small, slow, sub-significant single-signal ICs that combine into a positive portfolio is a *normal* profile for a real low-Sharpe cross-sectional book, but it is a reason to be precise about how much is claimed. **Actionable for Layer B:** the decay curves say the COT leg can be rebalanced weekly/monthly with near-zero information loss (ranking 75% stable at 21d) while carry needs faster rebalancing — a split-cadence turnover-reduction lever worth testing live. See `reports/11_ic_decay.md`.
 
 ### Walk-forward optimizer (Phase A2): confirms the optimizer's failure is structural
 
@@ -206,6 +233,23 @@ Two readings:
 1. **Carry is the dominant signal**, with standalone Sharpe well above 1.0 in three of four regimes. The post-2022 reading (+2.05) is particularly notable — the period that broke many systematic strategies (post-Russia/Ukraine + OPEC+ + ZIRP exit) was excellent for carry.
 2. **COT contributes diversification, not absolute return**. Its standalone Sharpes are positive but moderate; its low correlation with carry makes the blend's Sharpe higher than either alone in some regimes (notably strategy-vol-high: blend +1.33 > carry +1.31).
 
+## Layer A decision gate
+
+Layer A is complete. Three research-firming passes hardened the load-bearing claims beyond the original Phase 8/A1-A6 work: **A-1** rebuilt the single IS/OOS split into a proper expanding walk-forward with yearly survivor re-selection (deployable-baseline trace, `reports/08_walkforward.md`); **A-2** replaced the hand-waved trial count with an explicit line-item ledger and swept the DSR across the whole honest range (`reports/10_dsr_trials.md`); **A-3** tested whether the individual signals actually predict, via lookahead-free information coefficients and signal-decay curves (`reports/11_ic_decay.md`). The consolidated evidence:
+
+| Gate test | Result | Reading |
+|---|---|---|
+| Block-bootstrap CI excludes zero (full / IS / OOS) | **PASS** (robust) | CI [+0.54, +1.43], p < 0.001; excludes zero in every cut. The Sharpe is not zero. |
+| DSR > 0.95 at effective trial count (N≈18) | **PASS** (0.957, static) | Survives multiple-testing under correlation-adjusted counting. |
+| DSR > 0.95 at naive trial count (N≈47) | **FAIL** (0.905, static) | Fails under the most conservative counting. |
+| DSR > 0.95 on the walk-forward OOS trace | **FAIL** for N ≥ 11 | The cleanest OOS number doesn't clear the strict bar (fewer obs → higher null). |
+| Robust under sensitivity (27 perturbations) | **PASS** | Sharpe ∈ [+0.65, +1.27]; no single commodity or parameter drives it. |
+| Any single signal with significant right-signed IC | **NO** | COT is right-signed and slow but sub-significant (t +1.43); carry's IC ≈ 0. |
+
+**Verdict: YELLOW (proceed to Layer B as minimum-size paper trading).** Mapping to the roadmap's gate: the bootstrap CI *excludes* zero and the result is *robust* across every sensitivity sweep — both GREEN conditions. What holds it at YELLOW rather than GREEN is the strict multiple-testing bar: the DSR sits right on 0.95 (≈ 0.91-0.96 depending on how the ~18-47 trials are counted) and the cleanest out-of-sample trace fails it, while no individual signal clears a significant right-signed IC. This is the honest reading of a *real but thin* edge — not a clean GREEN, not a RED (nothing degraded under perturbation; the point estimate is stable and positive everywhere).
+
+The decision this implies is unambiguous and is the whole reason Layer B exists: **the only way to push a borderline DSR past the bar is fresh, post-publication data that accrues no selection bias.** Layer B is therefore framed as **minimum-size paper trading treated as the genuine out-of-sample test**, not as a scale-up. Two corollaries fall straight out of the firming work: (1) **do not mine further configs** — every additional trial raises N and pushes the DSR down; the research is frozen as of this gate. (2) **Layer B can rebalance the slow COT leg weekly/monthly** (A-3 persistence) to cut turnover without losing signal. Re-evaluate after 3-6 months of live paper P&L against the Layer B gate in `ROADMAP.md`.
+
 ## What worked
 
 1. **Walk-forward and bootstrap discipline.** Without these, the 5-commodity universe's modest-looking Sharpe of +0.275 could have been declared "the result" — only to be embarrassed in production. Significance testing forced honesty.
@@ -230,24 +274,24 @@ Two readings:
 - **Single IS/OOS split.** The roadmap's Phase A2 (rolling walk-forward) would produce a much longer effective OOS trace. The current OOS spans 2019-2026 (7 years) which is substantial but a single experiment.
 - **Backtest does not model financing or margin.** Futures trading is levered; overnight financing costs aren't in the cost model.
 
-## What I'd do with more time (the roadmap)
+## What's next (the roadmap)
 
-The full plan is in `ROADMAP.md`. Highlights:
+The full plan is in `ROADMAP.md`. **Layer A is complete** — the original Phase 8/A1-A6 work plus three research-firming passes:
 
-**Layer A — further firming of the research:**
-- A2 (rolling walk-forward): replace single split with rolling 5y train / 1y test windows, step monthly. Produces a much longer effective OOS trace.
-- A3 (Deflated Sharpe Ratio): correct the headline Sharpe for the number of trials run during model selection (5 signals × hyperparameter grid).
-- A4 (calendar-spread carry): build a direct curve-shape signal from currently-active futures contracts; compare to the ETF-proxy carry on the post-2018 window.
-- A5 (time-series momentum): test as an additional uncorrelated signal.
-- A6 (sensitivity sweeps): leave-one-commodity-out, alternate cov lookbacks, alternate IS/OOS splits.
+- **A1 (universe expansion):** 5 → 13 commodities; flipped the verdict from marginal to statistically real (`Phase A1` section above).
+- **A-1 (walk-forward baseline):** expanding-window with yearly survivor re-selection, audited leakage-free (`reports/08_walkforward.md`).
+- **A-2 (rigorous DSR):** line-item trial ledger, N ∈ [18, 47], DSR sweep (`reports/10_dsr_trials.md`).
+- **A-3 (IC + signal decay):** lookahead-free information coefficients and persistence curves (`reports/11_ic_decay.md`).
+- **A4 (calendar-spread carry validation), A5 (time-series momentum), A6 (sensitivity sweeps):** all reported above.
 
-**Layer B — live trading system (gated on A passing further checks):**
+The Layer A decision gate is **YELLOW → proceed to Layer B as minimum-size paper trading** (see the decision-gate section above). Remaining work is Layer B:
+
 - B1: `LivePortfolio` + cron daily-pulse scheduler.
 - B2: Stale-data, position-blowup, drawdown alerting.
 - B3: Alpaca paper-trading integration with fill reconciliation.
 - B4: Live dashboard with monthly bootstrap on actual live returns.
 
-Total remaining engineering work: ~10-15 days plus 3-6 months of calendar time for live validation.
+Layer B is ~7-10 engineering days plus 3-6 months of calendar time for live validation. The research is frozen at this gate — mining more configs only raises the DSR trial count.
 
 ## Resume framing
 
@@ -287,6 +331,11 @@ uv run python scripts/run_optimization.py              # Phase 7
 # Reproduce THIS final report (13-commodity universe)
 uv run python scripts/run_final_evaluation.py          # Phase 8 + A1
 
+# Research-firming passes (Layer A)
+uv run python scripts/run_walkforward.py               # A-1 walk-forward baseline
+uv run python scripts/run_dsr_trials.py                # A-2 rigorous DSR trial ledger
+uv run python scripts/run_ic_analysis.py               # A-3 IC + signal decay
+
 # Verify
 uv run pytest    # 176 tests
 ```
@@ -317,8 +366,10 @@ stat-arb/
     ├── 04_macro_signals.md
     ├── 05_portfolio_construction.md
     ├── 07_sensitivity.md       # Phase A6 robustness sweeps
-    ├── 08_walkforward.md       # Phase A2 year-by-year + walk-forward
+    ├── 08_walkforward.md       # Phase A2 / A-1 year-by-year + walk-forward baseline
     ├── 09_calendar_carry_validation.md  # Phase A4 carry-proxy validation
+    ├── 10_dsr_trials.md        # A-2 rigorous DSR trial-count ledger
+    ├── 11_ic_decay.md          # A-3 information coefficient + signal decay
     ├── FINAL.md                # ← this document
     └── charts/                 # PNGs referenced inline
 ```

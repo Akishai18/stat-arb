@@ -69,6 +69,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CHARTS_DIR = REPO_ROOT / "reports" / "charts"
 ANNUAL_CSV = REPO_ROOT / "reports" / "08_annual_sharpe.csv"
 WALKFORWARD_CSV = REPO_ROOT / "reports" / "08_walkforward_summary.csv"
+BASELINE_WF_CSV = REPO_ROOT / "reports" / "08_walkforward_baseline.csv"
 
 # Locked baseline parameters
 MOM_LOOKBACK = 252
@@ -371,6 +372,153 @@ def part_2_walkforward_optimizer(prices, adj_clean, futures, signals, first_vali
     return {"sharpe": overall_sharpe, "boot": boot, "trace": wf_returns}
 
 
+# ----------------------------------------------------------------------------
+# Part 3: rolling walk-forward of the HEADLINE BASELINE (A-1)
+# ----------------------------------------------------------------------------
+
+
+def _baseline_walkforward_trace(prices, signals, first_valid, *, train_mode, train_years):
+    """One walk-forward of the equal-weight survivor baseline.
+
+    At each test year the surviving signals are re-selected using ONLY the
+    trailing train window (positive standalone IS Sharpe), then equal-weighted
+    into the alpha blend and traded out-of-sample on the next year. This is
+    the SAME protocol Part 2 applies to the optimizer, so the two are directly
+    comparable; the only difference is portfolio construction (eq-weight
+    quantile vs cvxpy mean-variance).
+
+    train_mode : "expanding" (all prior data) or "rolling" (last `train_years`).
+    Returns (per_year_rows, concatenated_oos_returns).
+    """
+    bt = Backtester(prices, LinearCostModel(bps_per_side=COST_BPS))
+    aligned = {n: s.loc[first_valid:] for n, s in signals.items()}
+
+    last_year = prices.adj_close().index.max().year
+    min_train = train_years if train_mode == "rolling" else 3
+    first_year = max(first_valid.year + min_train, 2015)
+    oos_years = list(range(first_year, last_year + 1))
+
+    rows: list[dict] = []
+    oos_returns: list[pd.Series] = []
+    for year in oos_years:
+        train_end = pd.Timestamp(f"{year - 1}-12-31")
+        if train_mode == "rolling":
+            train_start = pd.Timestamp(f"{year - train_years}-01-01")
+        else:
+            train_start = first_valid
+        test_start = pd.Timestamp(f"{year}-01-01")
+        test_end = pd.Timestamp(f"{year}-12-31")
+
+        # 1. Standalone IS Sharpe of each signal on the trailing train window only.
+        is_sharpes_t: dict[str, float] = {}
+        for name, sc in signals.items():
+            train_score = sc.loc[train_start:train_end]
+            if train_score.empty or train_score.notna().sum().sum() == 0:
+                is_sharpes_t[name] = 0.0
+                continue
+            standalone = _quantile_backtest(train_score, prices, max(first_valid, train_start))
+            is_sharpes_t[name] = _is_sharpe(standalone.net_returns.loc[train_start:train_end])
+
+        # 2. Survivors = positive train-IS-Sharpe. Equal-weight them (the headline
+        #    construction). Skip the year if nothing survives.
+        survivors = [n for n in signals if is_sharpes_t[n] > 0]
+        if not survivors:
+            continue
+        blend = eq_combine({n: aligned[n] for n in survivors})
+        weights = long_short_quantile_weights(
+            blend, long_quantile=LONG_Q, short_quantile=SHORT_Q, gross_leverage=1.0,
+        )
+        net_t = bt.run(weights).net_returns.loc[test_start:test_end]
+        if net_t.dropna().empty:
+            continue
+        oos_returns.append(net_t)
+
+        year_sharpe = _is_sharpe(net_t)
+        rows.append({
+            "year": year,
+            "n_days": int(net_t.dropna().shape[0]),
+            "oos_sharpe": round(year_sharpe, 3),
+            "oos_cum_return": round(float((1.0 + net_t).prod() - 1.0), 4),
+            "surviving_signals": "+".join(survivors),
+            **{f"is_sharpe_{name}": round(v, 3) for name, v in is_sharpes_t.items()},
+        })
+        print(
+            f"  {year}: survivors={'+'.join(survivors) or 'none':<22s}  "
+            f"OOS Sharpe = {year_sharpe:+.3f}  ({net_t.dropna().shape[0]} days)"
+        )
+    return rows, oos_returns
+
+
+def part_3_walkforward_baseline(prices, signals, first_valid):
+    """Walk-forward the headline baseline under expanding AND rolling-5y train.
+
+    This is the A-1 gap-closer: the deployable strategy (equal-weight
+    carry+cot) gets the same rolling treatment the optimizer already got,
+    instead of resting on a single static 2018-12-31 split.
+    """
+    print("\n" + "=" * 76)
+    print("PART 3 — Walk-forward of the HEADLINE baseline (A-1)")
+    print("=" * 76)
+    print("Each test year: re-select survivors by trailing-window IS Sharpe,")
+    print("equal-weight blend, trade next year OOS. Survivors re-chosen yearly.")
+
+    results: dict[str, dict] = {}
+    all_rows: list[dict] = []
+    for train_mode, train_years in [("expanding", None), ("rolling", 5)]:
+        label = train_mode if train_mode == "expanding" else f"rolling-{train_years}y"
+        print(f"\n--- {label} train window ---")
+        rows, oos_returns = _baseline_walkforward_trace(
+            prices, signals, first_valid,
+            train_mode=train_mode, train_years=train_years or 0,
+        )
+        if not oos_returns:
+            print("  no usable OOS years")
+            continue
+        trace = pd.concat(oos_returns).sort_index()
+        overall = _is_sharpe(trace)
+        boot = bootstrap_sharpe(trace, n_resamples=5000, block_length=20, rng_seed=0)
+        print(
+            f"  OOS trace: {len(trace)} days "
+            f"{trace.index.min().date()} -> {trace.index.max().date()}"
+        )
+        print(f"  Walk-forward Sharpe: {overall:+.3f}")
+        print(
+            f"  Bootstrap CI: [{boot.ci_low:+.3f}, {boot.ci_high:+.3f}]  "
+            f"t-stat={boot.t_stat:+.2f}  p(Sharpe<=0)={boot.p_value_neg:.3f}  "
+            f"{'**SIG**' if boot.is_significant_at_5pct else 'n.s.'}"
+        )
+        results[label] = {"trace": trace, "sharpe": overall, "boot": boot}
+        for r in rows:
+            all_rows.append({"train_mode": label, **r})
+
+    if all_rows:
+        df = pd.DataFrame(all_rows)
+        df.to_csv(BASELINE_WF_CSV, index=False)
+        print(f"\nsaved {BASELINE_WF_CSV}")
+
+    # Overlay equity curves for the two walk-forward modes.
+    if results:
+        fig, ax = plt.subplots(figsize=(10, 4.5))
+        palette = {"expanding": "#1f4e79", "rolling-5y": "#c0392b"}
+        for label, res in results.items():
+            eq = (1.0 + res["trace"]).cumprod()
+            ax.plot(eq.index, eq.values, linewidth=1.6,
+                    color=palette.get(label, "#555"),
+                    label=f"{label}  (Sharpe {res['sharpe']:+.2f})")
+        ax.set_title("Walk-forward of the headline baseline (A-1) — OOS traces")
+        ax.set_ylabel("growth of $1")
+        ax.grid(alpha=0.3)
+        ax.legend(loc="best", frameon=False)
+        fig.tight_layout()
+        out = CHARTS_DIR / "08_walkforward_baseline_equity.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=140, bbox_inches="tight")
+        plt.close(fig)
+        print(f"saved chart: {out}")
+
+    return results
+
+
 def main() -> int:
     print("=" * 76)
     print("PHASE A2 — walk-forward analysis")
@@ -383,6 +531,7 @@ def main() -> int:
 
     part_1_annual_sharpe(prices, signals, first_valid)
     part_2_walkforward_optimizer(prices, adj_clean, futures, signals, first_valid)
+    part_3_walkforward_baseline(prices, signals, first_valid)
     return 0
 
 

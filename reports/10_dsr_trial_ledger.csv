@@ -1,0 +1,18 @@
+phase,description,naive,effective
+P3,12-1 cross-sectional momentum (ETF universe),1,1
+P4,"reversal lookback {1,5,21}d (ETF)",3,1
+P4,momentum+reversal blend (ETF),1,1
+P5,momentum & reversal-5d re-run on futures universe,2,0
+P5,realized-carry 21d,1,1
+P5,mom+rev and mom+rev+carry blends,2,1
+P6,COT managed-money 3y positioning z-score,1,1
+P6,EIA inventory 5yr-seasonal surprise,1,1
+P6,carry+cot and all-5 blends,2,1
+P7,time-series momentum 126d,1,1
+P7,sharpe-weighted alpha blend,1,1
+P7,"cvxpy optimizer lambda{0.5,5,50} x turnover{none,.5,.2}",9,3
+A6,leave-one-commodity-out (drop each of 13),13,2
+A6,"alt IS/OOS cutoff {2017,2019,2020} (ex-2018)",3,0
+A6,"quantile threshold {30,50}% (ex-40)",2,1
+A6,"carry lookback {10,42}d (ex-21)",2,1
+A6,"COT lookback {104,208}w (ex-156)",2,1

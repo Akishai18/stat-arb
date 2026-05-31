@@ -27,6 +27,7 @@ opt = [
 dashboard = [
     "streamlit>=1.30",
     "plotly>=5.18",
+    "websockets>=13,<14",
 ]
 
 [build-system]
