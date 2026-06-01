@@ -1,6 +1,8 @@
 # Data — never commit raw or processed market data
 data/raw/
 data/processed/
+# Live paper-trading state (the running scorecard) is local runtime state
+data/live/
 
 # Python
 __pycache__/

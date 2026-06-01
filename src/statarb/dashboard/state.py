@@ -37,13 +37,11 @@ from statarb.evaluation import (
     trailing_return_regime,
     vix_regime,
 )
+from statarb.live.pipeline import headline_weights_from_signals
 from statarb.portfolio import (
     long_short_quantile_weights,
     optimize_path,
     rolling_covariance,
-)
-from statarb.signals import (
-    combine as eq_combine,
 )
 from statarb.signals import (
     cot_positioning,
@@ -244,12 +242,10 @@ def _optimizer_backtests(
         cov_cache=cov_cache,
     )
 
-    # Baseline: equal-weight carry+cot
-    baseline_alpha = eq_combine(
-        {"carry": signals["carry"].loc[first_valid:], "cot": signals["cot"].loc[first_valid:]}
-    )
-    baseline_weights = long_short_quantile_weights(
-        baseline_alpha, long_quantile=LONG_Q, short_quantile=SHORT_Q, gross_leverage=1.0,
+    # Baseline: equal-weight carry+cot. Shared with the live paper book so the
+    # dashboard and daily_pulse trade an identical target (see live.pipeline).
+    baseline_weights = headline_weights_from_signals(
+        signals["carry"], signals["cot"], first_valid=first_valid,
     )
 
     optimizer_by_cost = {

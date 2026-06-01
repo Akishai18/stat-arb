@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd agent for the daily paper-trading pulse.
+
+  Install:
+    cp scripts/launchd/com.statarb.dailypulse.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.statarb.dailypulse.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.statarb.dailypulse.plist
+    rm ~/Library/LaunchAgents/com.statarb.dailypulse.plist
+
+  Run once now (manual trigger):
+    launchctl start com.statarb.dailypulse
+
+  Fires Mon-Fri at 17:00 local (after the US cash close). On a laptop that was
+  asleep at 17:00, launchd runs the job at the next wake; the pulse's catch-up
+  logic then records every trading day that was missed, so no day is lost.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.statarb.dailypulse</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/akishai/arb/stat-arb/.venv/bin/python</string>
+        <string>/Users/akishai/arb/stat-arb/scripts/daily_pulse.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/akishai/arb/stat-arb</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>17</integer><key>Minute</key><integer>0</integer></dict>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/akishai/arb/stat-arb/data/live/cron.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/akishai/arb/stat-arb/data/live/cron.log</string>
+</dict>
+</plist>

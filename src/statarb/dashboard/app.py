@@ -9,7 +9,16 @@ import streamlit as st
 
 from statarb.dashboard.state import COST_LEVELS_BPS, HEADLINE_COST_BPS, build_state
 from statarb.dashboard.theme import inject_bloomberg_css, render_header
-from statarb.dashboard.views import about, costs, overview, portfolio, regimes, signals, today
+from statarb.dashboard.views import (
+    about,
+    costs,
+    live,
+    overview,
+    portfolio,
+    regimes,
+    signals,
+    today,
+)
 
 
 def main() -> None:
@@ -97,7 +106,8 @@ def main() -> None:
         "F4 PORTFOLIO",
         "F5 COSTS",
         "F6 REGIMES",
-        "F7 ABOUT",
+        "F7 LIVE",
+        "F8 ABOUT",
     ])
     with tabs[0]:
         overview.render(state)
@@ -112,6 +122,8 @@ def main() -> None:
     with tabs[5]:
         regimes.render(state)
     with tabs[6]:
+        live.render(state)
+    with tabs[7]:
         about.render(state)
 
 
